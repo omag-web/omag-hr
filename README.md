@@ -1,8 +1,10 @@
-# OMAG HR Assistant
+# Pip — OMAG's HR Assistant
 
-A member-facing HR assistant for Oklahoma municipalities, replacing OMAG's "Oklahoma Municipal HR Assistant" CustomGPT. Members ask employment-law questions answered from Oklahoma statutes (Title 11 and others), federal regulations and OMAG guidance, with citations, and generate documents (personnel handbook, FMLA policy, acknowledgment receipt) from OMAG's templates.
+**Pip** is a member-facing HR assistant for Oklahoma municipalities, replacing OMAG's "Oklahoma Municipal HR Assistant" CustomGPT. Members ask employment-law questions answered from Oklahoma statutes (Title 11 and others), federal regulations and OMAG guidance, with citations, and generate documents (personnel handbook, FMLA policy, acknowledgment receipt) from OMAG's templates.
 
 **Status:** prototype / planning. Nothing here talks to a backend yet.
+
+**Name:** "Pip" is a working name. In the prototype it's set once (`const BOT = 'Pip'` in `prototype/index.html`). Always show it with the descriptor "OMAG's HR assistant" and an **AI** label so members don't mistake it for OMAG staff.
 
 ## What's in the repo
 

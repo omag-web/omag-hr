@@ -1,5 +1,7 @@
 # Scope and plan
 
+Assistant name: **Pip** (working name), shown as "Pip · OMAG's HR assistant" with an AI label on every answer.
+
 Working notes for replacing the "Oklahoma Municipal HR Assistant" CustomGPT with a custom-built, member-facing tool. Figures and model details are as of November 2026.
 
 ## Goals
