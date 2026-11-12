@@ -20,7 +20,7 @@ Open `prototype/index.html` in any browser, or enable GitHub Pages for this repo
 
 Things to try:
 
-- Ask **"Can the mayor suspend an employee unilaterally?"**, then change the form of government in **Member profile** (bottom of the sidebar) and ask again — the answer and citations change per Title 11.
+- Ask **"Can the mayor suspend an employee unilaterally?"**, then change **Form of government** in the top bar and ask again — the answer and citations change per Title 11.
 - Click any citation chip to see the statute text (Title 11) or a regulation summary (29 C.F.R.).
 - **Document templates → Personnel policies handbook** — fill in the blanks and download a real `.docx`.
 - **"Is our handbook FMLA compliant?"** → **Upload our handbook** — simulated review (sample findings).
