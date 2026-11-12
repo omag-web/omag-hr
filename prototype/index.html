@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>OMAG HR Assistant – Prototype</title>
+<title>Pip – OMAG's HR Assistant (Prototype)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
@@ -37,6 +37,8 @@ svg{flex:none}
 .brand-mark{width:38px;height:38px;border-radius:9px;background:#fff;color:var(--navy);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:10.5px;letter-spacing:.2px;border-bottom:3px solid var(--gold)}
 .brand-name{font-weight:700;font-size:15px;line-height:1.2}
 .brand-sub{font-size:12px;color:#a9bccf}
+.ai-name{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--ink);margin-bottom:-4px}
+.ai-tag{display:inline-flex;padding:1px 6px;border-radius:5px;background:#eef2f6;border:1px solid var(--line-2);color:var(--muted);font-size:10.5px;font-weight:700;letter-spacing:.5px}
 .new-btn{display:flex;align-items:center;gap:10px;min-height:44px;padding:0 14px;border-radius:10px;border:1px solid #3b5a7a;background:var(--navy-2);color:#fff;font-size:14px;font-weight:600;text-align:left}
 .new-btn:hover{background:var(--navy-3);border-color:var(--gold)}
 .side-group{display:flex;flex-direction:column;gap:2px}
@@ -72,7 +74,7 @@ svg{flex:none}
 .bubble{max-width:82%;background:var(--accent-bg);border-radius:16px 16px 4px 16px;padding:12px 16px;font-size:15px;line-height:1.55}
 .file-chip{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:10px;background:#fff;border:1px solid var(--accent-line);font-size:13.5px;font-weight:600;margin-bottom:8px}
 .msg-ai{display:flex;gap:14px;align-items:flex-start}
-.ai-mark{flex:none;width:32px;height:32px;border-radius:8px;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border-bottom:2px solid var(--gold)}
+.ai-mark{flex:none;width:32px;height:32px;border-radius:8px;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:700;border-bottom:2px solid var(--gold)}
 .ai-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:12px;font-size:15px;line-height:1.62}
 .ai-body p{margin:0}
 .block{animation:rise .35s ease both}
@@ -206,8 +208,8 @@ svg{flex:none}
 
 /* responsive */
 @media (max-width:900px){
-  .sidebar{position:fixed;inset:0 auto 0 0;z-index:45;transform:translateX(-100%);transition:transform .25s ease;box-shadow:8px 0 30px rgba(14,30,48,.25)}
-  .sidebar.open{transform:none}
+  .sidebar{position:fixed;inset:0 auto 0 0;z-index:45;transform:translateX(-100%);transition:transform .25s ease,visibility .25s;visibility:hidden}
+  .sidebar.open{transform:none;visibility:visible;box-shadow:8px 0 30px rgba(14,30,48,.25)}
   .menu-btn{display:inline-flex}
   .topbar{padding:10px 14px}
   .hide-sm{display:none!important}
@@ -228,7 +230,7 @@ svg{flex:none}
   <nav class="sidebar" id="sidebar" aria-label="Conversations and templates">
     <div class="brand">
       <div class="brand-mark" aria-hidden="true">OMAG</div>
-      <div><div class="brand-name">HR Assistant</div><div class="brand-sub">For OMAG members</div></div>
+      <div><div class="brand-name" data-bot-name>Pip</div><div class="brand-sub">OMAG's HR assistant</div></div>
     </div>
 
     <button class="new-btn" type="button" data-action="new">
@@ -356,6 +358,8 @@ const FORMS = {
   strong:    {label:'Strong-Mayor-Council City', unit:'City', body:'City Council', exec:'Mayor', clerk:'City Clerk'},
   charter:   {label:'Charter City', unit:'City', body:'City Council', exec:'(per charter)', clerk:'City Clerk'}
 };
+/* The assistant's display name. Change it here and everywhere updates. */
+const BOT = 'Pip';
 const state = { name:'', muni:'Town of Example', form:'town', busy:false, docs:{} };
 const F = () => FORMS[state.form];
 
@@ -634,7 +638,7 @@ A.handbook_done = (v) => {
 };
 
 A.fallback = (q) => ({ title: q.length>40 ? q.slice(0,40)+'…' : q, blocks:[
-  `<p>This prototype only has scripted answers for a few sample questions, so I can't answer that one yet. In the live version, the assistant searches Oklahoma statutes, federal regulations and OMAG's guidance to answer any HR question.</p>`,
+  `<p>This prototype only has scripted answers for a few sample questions, so I can't answer that one yet. In the live version, ${esc(BOT)} searches Oklahoma statutes, federal regulations and OMAG's guidance to answer any HR question.</p>`,
   `<p>Try one of these:</p>`,
   suggest([['Do we have to follow FMLA with 30 employees?'],['Does our town clerk have hiring authority?'],['Can the mayor suspend an employee unilaterally?'],['Is our handbook FMLA compliant?'],['Build our personnel policies handbook']])
 ]});
@@ -676,9 +680,9 @@ function renderWelcome(){
   setActive(null);
   inner.innerHTML = `<div class="welcome">
     <div class="welcome-head">
-      <div class="welcome-mark" aria-hidden="true">HR</div>
-      <h2>What HR question can I help with?</h2>
-      <p>Ask about Oklahoma statutes and federal employment law for your form of government, or have me draft a document from OMAG's templates using your ${F().unit.toLowerCase()}'s details.</p>
+      <div class="welcome-mark" aria-hidden="true">${esc(BOT)}</div>
+      <h2>Hi, I'm ${esc(BOT)}. What HR question can I help with?</h2>
+      <p>I'm OMAG's AI assistant for municipal HR. Ask about Oklahoma statutes and federal employment law for your form of government, or have me draft a document from OMAG's templates using your ${F().unit.toLowerCase()}'s details.</p>
       ${govLine()}
     </div>
     <div class="starters">
@@ -701,10 +705,10 @@ function addUser(text, file){
 async function addAI(ans){
   state.busy = true; updateSend();
   const wrap = document.createElement('div'); wrap.className='msg-ai block';
-  wrap.innerHTML = `<div class="ai-mark" aria-hidden="true">HR</div><div class="ai-body"><div class="thinking-label"><div class="typing" aria-hidden="true"><span></span><span></span><span></span></div><span>Checking Title 11, federal regulations and OMAG guidance…</span></div></div>`;
+  wrap.innerHTML = `<div class="ai-mark" aria-hidden="true">${esc(BOT)}</div><div class="ai-body"><div class="ai-name">${esc(BOT)} <span class="ai-tag" title="Answers are generated by AI">AI</span></div><div class="thinking-label"><div class="typing" aria-hidden="true"><span></span><span></span><span></span></div><span>Checking Title 11, federal regulations and OMAG guidance…</span></div></div>`;
   inner.appendChild(wrap); scrollDown();
   await sleep(900 + Math.random()*500);
-  const body = wrap.querySelector('.ai-body'); body.innerHTML='';
+  const body = wrap.querySelector('.ai-body'); body.querySelector('.thinking-label').remove();
   if (ans.title && $('#conv-title').textContent==='New conversation') $('#conv-title').textContent = ans.title;
   for (const html of ans.blocks){
     const d = document.createElement('div'); d.className='block'; d.innerHTML = html;
@@ -908,7 +912,7 @@ async function buildDocx(id){
       n.querySelectorAll(':scope > div').forEach(c=> kids.push(new Paragraph({spacing:{before:480,after:60}, border:{top:{color:'333333',space:4,style:BorderStyle.SINGLE,size:6}}, children:[new TextRun({text:c.textContent, size:18, color:'555555', font:'Arial'})]})));
     }
   });
-  const doc = new Document({ creator:'OMAG HR Assistant (prototype)', title: state.docs[id].title, sections:[{ properties:{page:{margin:{top:1440,bottom:1440,left:1440,right:1440}}}, children: kids }] });
+  const doc = new Document({ creator:`${BOT} – OMAG's HR assistant (prototype)`, title: state.docs[id].title, sections:[{ properties:{page:{margin:{top:1440,bottom:1440,left:1440,right:1440}}}, children: kids }] });
   return Packer.toBlob(doc);
 }
 let downloadsNS;
@@ -995,6 +999,8 @@ $('#scrim').addEventListener('click', closePanel);
 document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ if($('#modal').classList.contains('show')) closeModal(); else if($('#panel').classList.contains('show')) closePanel(); else closeSidebar(); } });
 
 /* ============ INIT ============ */
+document.querySelectorAll('[data-bot-name]').forEach(el=>el.textContent=BOT);
+document.title = `${BOT} – OMAG's HR Assistant (Prototype)`;
 renderProfile();
 renderWelcome();
 })();
