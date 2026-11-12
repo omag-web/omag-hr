@@ -4,7 +4,7 @@
 
 **Status:** prototype / planning. Nothing here talks to a backend yet.
 
-**Name:** "Pip" is a working name. In the prototype it's set once (`const BOT = 'Pip'` in `prototype/index.html`). Always show it with the descriptor "OMAG's HR assistant" and an **AI** label so members don't mistake it for OMAG staff.
+**Name:** "Pip" is a working name. In the prototype it's set once (`const BOT = 'Pip'` in `prototype/index.html`). Its icon is a single gold dot (the "pip") in a chat bubble, in OMAG navy and gold. Always show it with the descriptor "OMAG's HR assistant" and an **AI** label so members don't mistake it for OMAG staff.
 
 ## What's in the repo
 
@@ -13,6 +13,7 @@
 | [`prototype/index.html`](prototype/index.html) | Clickable front-end prototype with scripted answers. Single self-contained file — open it in a browser. |
 | [`docs/scope.md`](docs/scope.md) | Scope, architecture, cost estimate, analytics plan and open decisions. |
 | [`docs/system-prompt.md`](docs/system-prompt.md) | The CustomGPT's instructions, carried over as the starting system prompt. |
+| [`assets/`](assets/) | Pip's icon: `pip-icon.svg` (navy tile, for light backgrounds and app icons), `pip-mark-on-dark.svg` (no tile, for navy backgrounds), `pip-icon-512.png`. |
 
 ## Running the prototype
 
