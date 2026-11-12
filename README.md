@@ -4,7 +4,7 @@
 
 **Status:** prototype / planning. Nothing here talks to a backend yet.
 
-**Name:** "Pip" is a working name. In the prototype it's set once (`const BOT = 'Pip'` in `prototype/index.html`). Its icon is a seed sprouting in a chat bubble (a "pip" is a seed) in OMAG navy and gold. Always show it with the descriptor "OMAG's HR assistant" and an **AI** label so members don't mistake it for OMAG staff.
+**Name:** "Pip" is a working name. In the prototype it's set once (`const BOT = 'Pip'` in `prototype/index.html`). Its icon is a single gold dot (the "pip") in a chat bubble, in OMAG navy and gold. Always show it with the descriptor "OMAG's HR assistant" and an **AI** label so members don't mistake it for OMAG staff.
 
 ## What's in the repo
 
