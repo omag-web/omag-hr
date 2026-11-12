@@ -64,7 +64,7 @@ No user accounts, so there's nothing to maintain.
 - **IP:** truncated or hashed, used only for rate limiting.
 - **Open access tradeoff:** anyone with the link can use it. Mitigate with AWS WAF rate limits, a bot check (WAF CAPTCHA or Turnstile), a daily spend cap and an AWS Budgets alert. If abuse appears, add a shared **member access code** that rotates yearly.
 
-> The prototype still shows a "Member profile". It will be replaced with the city picker.
+> The prototype has a "Form of government" dropdown in the header and no profile. In the live build, the city picker fills it in from the member roster, and members can still change it.
 
 ## Analytics
 
