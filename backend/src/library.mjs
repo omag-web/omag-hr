@@ -136,6 +136,9 @@ export class Library {
 /* ---------- the live library: statutes + enabled OMAG documents ---------- */
 
 const LIBRARY_KEY = 'library/library.json';
+// The "Refresh statute library" GitHub Action uploads its build here (and the source list beside it).
+const PUBLISHED_KEY = 'published/library.json';
+const PUBLISHED_SOURCES_KEY = 'published/sources.json';
 const DEFAULT_LIBRARY_URL = 'https://omag-web.github.io/omag-hr/backend/data/library.json';
 let bundled = null;
 let current = { key: null, lib: null };
@@ -175,22 +178,29 @@ export async function getLibrary() {
   return promise;
 }
 
+/** The newest library the GitHub Action published: the copy in the data bucket, or (older setup) the web address. */
+async function publishedLibrary() {
+  const buf = await blobs.get(PUBLISHED_KEY).catch(() => null);
+  if (buf) return JSON.parse(buf.toString('utf8'));
+  const url = process.env.LIBRARY_URL || DEFAULT_LIBRARY_URL;
+  const r = await fetch(url, { headers: { 'cache-control': 'no-cache' }, signal: AbortSignal.timeout(60000) }).catch((e) => {
+    console.error('library download failed', e);
+    throw new Error('Couldn’t reach the published library. Pip keeps using the current library; try again later.');
+  });
+  if (!r.ok) throw new Error(`Couldn’t download the published library (HTTP ${r.status}). Pip keeps using the current library.`);
+  return r.json();
+}
+
 /**
- * Pulls the latest statute library published by the "Refresh statute library"
- * GitHub Action (served by GitHub Pages) and makes it live if it's newer.
+ * Picks up the latest statute library published by the "Refresh statute library"
+ * GitHub Action and makes it live if it's newer.
  * Runs daily on a schedule and from the admin panel.
  */
 export async function refreshLibrary({ force = false } = {}) {
-  const url = process.env.LIBRARY_URL || DEFAULT_LIBRARY_URL;
   const now = new Date().toISOString();
   let result;
   try {
-    const r = await fetch(url, { headers: { 'cache-control': 'no-cache' }, signal: AbortSignal.timeout(60000) }).catch((e) => {
-      console.error('library download failed', e);
-      throw new Error('Couldn’t reach the published library on GitHub Pages. Pip keeps using the current library; try again later.');
-    });
-    if (!r.ok) throw new Error(`Couldn’t download the published library (HTTP ${r.status}). Pip keeps using the current library.`);
-    const data = await r.json();
+    const data = await publishedLibrary();
     if (!Array.isArray(data.sections) || data.sections.length < 500 || !data.sections.every((s) => s.id && s.text && s.cite)) {
       throw new Error('The downloaded library looks incomplete, so it was not used.');
     }
@@ -226,10 +236,12 @@ const SOURCES_URL = () => process.env.SOURCES_URL || 'https://omag-web.github.io
 export const SOURCES_EDIT_URL = 'https://github.com/omag-web/omag-hr/edit/main/knowledge/sources.json';
 export const LIBRARY_WORKFLOW_URL = 'https://github.com/omag-web/omag-hr/actions/workflows/library.yml';
 
-/** knowledge/sources.json: the repo copy when running locally, otherwise the published copy on GitHub Pages. */
+/** knowledge/sources.json: the repo copy when running locally, otherwise the copy the library workflow published. */
 async function loadSourcesFile() {
   const local = fileURLToPath(new URL('../../knowledge/sources.json', import.meta.url));
   try { return JSON.parse(readFileSync(local, 'utf8')); } catch { /* not in the Lambda package */ }
+  const buf = await blobs.get(PUBLISHED_SOURCES_KEY).catch(() => null);
+  if (buf) return JSON.parse(buf.toString('utf8'));
   const r = await fetch(SOURCES_URL(), { headers: { 'cache-control': 'no-cache' }, signal: AbortSignal.timeout(15000) });
   if (!r.ok) throw Object.assign(new Error(`Couldn’t load the source list (HTTP ${r.status}).`), { status: 502 });
   return r.json();

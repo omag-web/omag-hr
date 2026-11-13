@@ -34,11 +34,21 @@ Parameters:
   LibraryUrl:
     Type: String
     Default: https://omag-web.github.io/omag-hr/backend/data/library.json
-    Description: Where the daily refresh downloads the statute library built by the GitHub Action.
+    Description: Older fallback for the statute library download. The GitHub Action now publishes the library straight to the data bucket, so this is only used if that copy is missing.
+  SiteDomain:
+    Type: String
+    Default: ''
+    Description: Pip's web address on OMAG's domain, e.g. pip.omag.org. Blank = no custom site (pages stay wherever they are hosted now).
+  HostedZoneId:
+    Type: String
+    Default: ''
+    Description: Route 53 hosted zone ID for the domain (e.g. Z0123456789ABC) when it's in this AWS account. Blank = you add the DNS records by hand.
 
 Conditions:
   HasContactEmail: !Not [!Equals [!Ref ContactEmail, '']]
   HasAdminEmail: !Not [!Equals [!Ref AdminEmail, '']]
+  HasSite: !Not [!Equals [!Ref SiteDomain, '']]
+  HasZone: !And [!Condition HasSite, !Not [!Equals [!Ref HostedZoneId, '']]]
 
 Globals:
   Function:
@@ -86,7 +96,7 @@ Resources:
         RestrictPublicBuckets: true
       CorsConfiguration:
         CorsRules:
-          - AllowedOrigins: !Ref AllowedOrigins
+          - AllowedOrigins: !If [HasSite, !Split [',', !Join [',', [!Join [',', !Ref AllowedOrigins], !Sub 'https://${SiteDomain}']]], !Ref AllowedOrigins]
             AllowedMethods: [PUT]
             AllowedHeaders: [content-type]
             MaxAge: 3600
@@ -120,7 +130,9 @@ Resources:
         AllowAdminCreateUserOnly: true
         InviteMessageTemplate:
           EmailSubject: Your Pip admin account
-          EmailMessage: 'You''ve been added as an admin for Pip, OMAG''s HR assistant. Sign in at https://omag-web.github.io/omag-hr/web/admin/ with your email {username} and this temporary password: {####} . You''ll choose your own password the first time you sign in.'
+          EmailMessage: !Sub
+            - 'You''ve been added as an admin for Pip, OMAG''s HR assistant. Sign in at ${AdminUrl} with your email {username} and this temporary password: {####} . You''ll choose your own password the first time you sign in.'
+            - AdminUrl: !If [HasSite, !Sub 'https://${SiteDomain}/admin/', 'https://omag-web.github.io/omag-hr/web/admin/']
       Policies:
         PasswordPolicy:
           MinimumLength: 12
@@ -237,7 +249,7 @@ Resources:
         AuthType: NONE
         InvokeMode: RESPONSE_STREAM
         Cors:
-          AllowOrigins: !Ref AllowedOrigins
+          AllowOrigins: !If [HasSite, !Split [',', !Join [',', [!Join [',', !Ref AllowedOrigins], !Sub 'https://${SiteDomain}']]], !Ref AllowedOrigins]
           AllowMethods: [GET, POST, PUT, DELETE]
           AllowHeaders: [content-type, authorization]
           MaxAge: 86400
@@ -376,10 +388,157 @@ Resources:
       AlarmActions: [!Ref ContactTopic]
       OKActions: [!Ref ContactTopic]
 
+  # ---------- Pip's web pages on OMAG's own domain (only when SiteDomain is set) ----------
+  # A private S3 bucket holds web/; CloudFront serves it over HTTPS at SiteDomain.
+  SiteBucket:
+    Type: AWS::S3::Bucket
+    Condition: HasSite
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 }
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules: [{ ObjectOwnership: BucketOwnerEnforced }]
+      Tags:
+        - { Key: app, Value: pip }
+
+  SiteBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Condition: HasSite
+    Properties:
+      Bucket: !Ref SiteBucket
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal: { Service: cloudfront.amazonaws.com }
+            Action: s3:GetObject
+            Resource: !Sub '${SiteBucket.Arn}/*'
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub 'arn:aws:cloudfront::${AWS::AccountId}:distribution/${SiteDistribution}'
+
+  # The HTTPS certificate. With HostedZoneId, AWS adds the DNS check itself; without it, the stack
+  # waits while you add the CNAME shown under Certificate Manager → the certificate → Domains.
+  SiteCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Condition: HasSite
+    Properties:
+      DomainName: !Ref SiteDomain
+      ValidationMethod: DNS
+      DomainValidationOptions: !If
+        - HasZone
+        - [{ DomainName: !Ref SiteDomain, HostedZoneId: !Ref HostedZoneId }]
+        - !Ref AWS::NoValue
+      Tags:
+        - { Key: app, Value: pip }
+
+  SiteOriginAccess:
+    Type: AWS::CloudFront::OriginAccessControl
+    Condition: HasSite
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub '${AWS::StackName}-site'
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  # /admin/ → /admin/index.html (S3 has no folder index pages).
+  SiteIndexFunction:
+    Type: AWS::CloudFront::Function
+    Condition: HasSite
+    Properties:
+      Name: !Sub '${AWS::StackName}-site-index'
+      AutoPublish: true
+      FunctionConfig:
+        Comment: Serve index.html for folder addresses
+        Runtime: cloudfront-js-2.0
+      FunctionCode: |
+        function handler(event) {
+          var r = event.request;
+          if (r.uri.slice(-1) === '/') r.uri += 'index.html';
+          else if (r.uri.split('/').pop().indexOf('.') === -1) {
+            return { statusCode: 301, statusDescription: 'Moved', headers: { location: { value: r.uri + '/' } } };
+          }
+          return r;
+        }
+
+  SiteDistribution:
+    Type: AWS::CloudFront::Distribution
+    Condition: HasSite
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: !Sub 'Pip web pages (${SiteDomain})'
+        Aliases: [!Ref SiteDomain]
+        HttpVersion: http2and3
+        PriceClass: PriceClass_100
+        DefaultRootObject: index.html
+        ViewerCertificate:
+          AcmCertificateArn: !Ref SiteCertificate
+          SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1.2_2021
+        Origins:
+          - Id: site
+            DomainName: !GetAtt SiteBucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt SiteOriginAccess.Id
+            S3OriginConfig: { OriginAccessIdentity: '' }
+        DefaultCacheBehavior:
+          TargetOriginId: site
+          ViewerProtocolPolicy: redirect-to-https
+          Compress: true
+          AllowedMethods: [GET, HEAD]
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6          # Managed-CachingOptimized
+          ResponseHeadersPolicyId: 67f7725c-6f97-4210-82d7-5512b31e9d03 # Managed-SecurityHeadersPolicy
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN: !GetAtt SiteIndexFunction.FunctionMetadata.FunctionARN
+      Tags:
+        - { Key: app, Value: pip }
+
+  SiteRecordA:
+    Type: AWS::Route53::RecordSet
+    Condition: HasZone
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Ref SiteDomain
+      Type: A
+      AliasTarget: { DNSName: !GetAtt SiteDistribution.DomainName, HostedZoneId: Z2FDTNDATAQYW2 }
+
+  SiteRecordAAAA:
+    Type: AWS::Route53::RecordSet
+    Condition: HasZone
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Ref SiteDomain
+      Type: AAAA
+      AliasTarget: { DNSName: !GetAtt SiteDistribution.DomainName, HostedZoneId: Z2FDTNDATAQYW2 }
+
 Outputs:
   AdminUrl:
     Description: The admin panel
-    Value: https://omag-web.github.io/omag-hr/web/admin/
+    Value: !If [HasSite, !Sub 'https://${SiteDomain}/admin/', 'https://omag-web.github.io/omag-hr/web/admin/']
+  MemberUrl:
+    Description: The member page
+    Value: !If [HasSite, !Sub 'https://${SiteDomain}/', 'https://omag-web.github.io/omag-hr/web/']
+  DataBucketName:
+    Description: Where the library workflow publishes the statute library
+    Value: !Ref DataBucket
+  SiteBucketName:
+    Condition: HasSite
+    Description: Where the web pages are published
+    Value: !Ref SiteBucket
+  SiteDistributionId:
+    Condition: HasSite
+    Value: !Ref SiteDistribution
+  SiteDnsTarget:
+    Condition: HasSite
+    Description: If the domain isn't in this AWS account, point SiteDomain here with a CNAME record
+    Value: !GetAtt SiteDistribution.DomainName
   UserPoolId:
     Description: The admin user pool (add admins on the Admins page of the admin panel)
     Value: !Ref AdminUserPool

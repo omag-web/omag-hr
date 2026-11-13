@@ -11,6 +11,15 @@ on:
       - '!backend/data/**'   # the monthly library rebuild doesn't need a deploy; Pip picks it up itself
       - '!backend/eval/**'
   workflow_dispatch:
+    inputs:
+      site_domain:
+        description: 'Only to set or change Pip''s web address, e.g. pip.omag.org. Leave blank to keep the current one.'
+        required: false
+        default: ''
+      hosted_zone_id:
+        description: 'Route 53 hosted zone ID for that domain (e.g. Z0123456789ABC). Leave blank to keep the current one.'
+        required: false
+        default: ''
 
 permissions:
   id-token: write   # to get the short-lived AWS credentials
@@ -57,6 +66,9 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Keep the stack's current settings
+        env:
+          IN_SITE_DOMAIN: ${{ inputs.site_domain }}
+          IN_ZONE: ${{ inputs.hosted_zone_id }}
         # Your answers to `sam deploy --guided` (emails, limits, model...) live in the stack, not in
         # the repo. Read them back so this deploy never resets them. New parameters use their defaults.
         run: |
@@ -68,6 +80,18 @@ jobs:
             const out = current
               .filter((p) => p.ParameterValue !== "" && new RegExp(`^  ${p.ParameterKey}:`, "m").test(template))
               .map((p) => `${p.ParameterKey}="${p.ParameterValue.replace(/"/g, "")}"`);
+            // Values typed into "Run workflow" replace the stored ones.
+            const typed = {
+              SiteDomain: (process.env.IN_SITE_DOMAIN || "").trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, ""),
+              HostedZoneId: (process.env.IN_ZONE || "").trim().toUpperCase().replace(/^\/?HOSTEDZONE\//, "")
+            };
+            for (const [k, v] of Object.entries(typed)) {
+              if (!v) continue;
+              if (!/^[A-Za-z0-9.\-]+$/.test(v)) { console.error(`That ${k} doesn’t look right: ${v}`); process.exit(1); }
+              const i = out.findIndex((x) => x.startsWith(k + "="));
+              if (i >= 0) out.splice(i, 1);
+              out.push(`${k}="${v}"`);
+            }
             writeFileSync("/tmp/overrides.txt", out.join(" "));
             console.log("Keeping:", current.map((p) => p.ParameterKey).join(", "));
           '
@@ -95,3 +119,7 @@ jobs:
           done
           echo "Pip's health check failed after deploying." >&2
           exit 1
+
+      - name: Publish the web pages (once Pip has its own web address)
+        working-directory: .
+        run: .github/scripts/publish-site.sh

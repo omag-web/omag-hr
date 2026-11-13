@@ -167,6 +167,20 @@ test('library refresh: newer library goes live, older or broken ones are ignored
   } finally { globalThis.fetch = realFetch; }
 });
 
+test('library refresh prefers the copy the GitHub Action published to the data bucket', async () => {
+  const realFetch = globalThis.fetch;
+  const { blobs } = await import('../src/storage.mjs');
+  const base = JSON.parse(readFileSync(new URL('../data/library.json', import.meta.url)));
+  const marker = { id: '11-99-998', cite: '11 O.S. § 99-998', heading: 'Bucket section', jurisdiction: 'OK', source: 'test', text: 'from the bucket' };
+  globalThis.fetch = async () => { throw new Error('should not download when the bucket has a copy'); };
+  try {
+    await blobs.put('published/library.json', JSON.stringify({ ...base, builtAt: '2099-06-01T00:00:00Z', sections: [...base.sections, marker] }), 'application/json');
+    const r = (await call('POST', '/admin/library/refresh')).json;
+    assert.equal(r.result.changed, true);
+    assert.equal((await call('GET', '/source', { query: { id: '11-99-998' } })).statusCode, 200);
+  } finally { globalThis.fetch = realFetch; }
+});
+
 test('analytics: totals, topics, cited sections, cities and comparison period', async () => {
   for (const [i, city] of ['Edmond', ' edmond ', 'Guthrie'].entries()) {
     await call('POST', '/chat', { body: { conversationId: `conv_an_${i}`, browserId: `b${i % 2}`, form: 'cm', city, messages: [{ role: 'user', text: 'city manager remove employees' }] } });
