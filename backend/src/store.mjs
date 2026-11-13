@@ -116,16 +116,21 @@ const turnSummary = (t) => ({
   conversationId: t.pk.slice(5), turnId: t.sk, at: t.sk.split('#')[1], day: t.day,
   city: t.city, form: t.form, question: t.question, answer: t.answer,
   citations: t.citations || [], unread: t.unreadCitations || [], rating: t.rating, ratingNote: t.ratingNote,
-  inputTokens: t.inputTokens, outputTokens: t.outputTokens, latencyMs: t.latencyMs, model: t.model, error: t.error
+  inputTokens: t.inputTokens, outputTokens: t.outputTokens, cacheReadTokens: t.cacheReadTokens, latencyMs: t.latencyMs, model: t.model, error: t.error,
+  browser: t.browser
 });
 
+/** Member questions from the last `days` days (UTC), newest day first. Queries days 10 at a time. */
 export async function listTurns({ days = 14, limit = 300 } = {}) {
   const out = [];
-  for (let i = 0; i < Math.min(days, 90) && out.length < limit; i++) {
-    const d = day(new Date(Date.now() - i * 86400000));
-    out.push(...(await kv.queryIndex(`TURNS#${d}`, { limit: limit - out.length })));
+  const n = Math.min(Math.max(1, days), 366);
+  for (let i = 0; i < n && out.length < limit; i += 10) {
+    const batch = [];
+    for (let j = i; j < Math.min(i + 10, n); j++) batch.push(day(new Date(Date.now() - j * 86400000)));
+    const results = await Promise.all(batch.map((d) => kv.queryIndex(`TURNS#${d}`, { limit })));
+    for (const r of results) out.push(...r);
   }
-  return out.map(turnSummary);
+  return out.slice(0, limit).map(turnSummary);
 }
 
 export async function getConversation(conversationId) {

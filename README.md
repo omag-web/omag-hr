@@ -11,7 +11,7 @@
 | Path | What it is |
 |---|---|
 | [`web/`](web/) | **The live app.** One page that streams answers from the backend. Set the API address in `web/config.js`. |
-| [`web/admin/`](web/admin/) | **The admin panel** for OMAG staff (sign-in required): instructions, OMAG documents, conversations, "Talk to OMAG" messages, settings, statute library. |
+| [`web/admin/`](web/admin/) | **The admin panel** for OMAG staff (sign-in required): analytics, instructions, OMAG documents, conversations, "Talk to OMAG" messages, settings, statute library. |
 | [`backend/`](backend/) | **The API.** AWS Lambda + OpenAI GPT-5.6 on Amazon Bedrock + DynamoDB, deployed with AWS SAM (`template.yaml`). The model is one setting (`ModelId`); Claude works too. |
 | [`backend/data/library.json`](backend/data/) | **The statute library** Pip searches: ~1,500 sections. Generated; don't edit by hand. |
 | [`knowledge/`](knowledge/) | What goes in the library (`sources.json`) and the scripts that build it from the Oklahoma Legislature and eCFR. |
@@ -35,7 +35,7 @@ No accounts: conversation history lives in the member's browser. IP addresses ar
 ```bash
 cd backend
 npm install
-npm test                 # 30 tests, no AWS needed
+npm test                 # 32 tests, no AWS needed
 npm run dev:mock         # http://localhost:8787 with a scripted stand-in model
                          # admin panel at http://localhost:8787/admin/ (no sign-in locally)
 ```
