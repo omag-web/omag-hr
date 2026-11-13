@@ -150,6 +150,15 @@ Most changes are made in the admin panel and take effect within a minute, with n
 
 Some things are built into the code and can't be changed in the panel: Pip identifies itself as an AI assistant, reads the actual sections before citing them, drops citations it didn't read, and never presents itself as legal counsel.
 
+**Privacy.** The AI runs inside OMAG's AWS account through Amazon Bedrock. Members' questions aren't sent to OpenAI or used to train models. Pip itself saves conversations (for **RetentionDays**, default 2 years) so admins can review them, so it also guards against personal details:
+- The member page warns before sending a message that looks like it contains a Social Security, card, bank account or driver's license number, a birth date, an email address or a phone number, and offers to remove them.
+- The server removes ID numbers, account numbers and birth dates again before anything reaches the AI or the logs. This also covers "Talk to OMAG" messages.
+- Pip never repeats personal details back and refers to people by role.
+- Names and medical details can't be detected reliably by pattern, so the page asks members to leave them out.
+- The member page doesn't say that conversations are logged. If OMAG publishes a privacy notice for its website or member tools, it should mention that Pip conversations are kept for review.
+
+To keep conversations for less time, rerun `sam deploy --guided` and lower **RetentionDays**.
+
 **Updating the statute library.** The *Refresh statute library* workflow runs monthly and whenever `knowledge/sources.json` changes. You can also run it from the repo's **Actions** tab. It commits a new `backend/data/library.json`, and GitHub Pages publishes it. The backend checks for a newer library once a day and switches to it automatically (or click **Check for updates now** under **Statute library** in the admin panel). A download that looks incomplete is ignored, and Pip keeps using the library it has.
 
 To add a title, section range or CFR part, edit `knowledge/sources.json`. The `_why` notes explain each entry.

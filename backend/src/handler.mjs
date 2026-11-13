@@ -27,6 +27,7 @@ import { matchAdmin } from './admin.mjs';
 import { refreshWebsites } from './docs.mjs';
 import { checkRateLimit, checkDocLimit, logTurn, logDocument, newTurnId, saveFeedback, saveContact } from './store.mjs';
 import { memberTemplates, fillTemplate } from './templates.mjs';
+import { redact } from './privacy.mjs';
 
 const ID = /^[A-Za-z0-9_-]{6,64}$/;
 const FORM_KEYS = ['town', 'aldermanic', 'cm', 'strong', 'charter'];
@@ -100,7 +101,16 @@ async function source(stream, id) {
 
 /** Member chat, or (with opts.admin) an admin preview using the draft instructions. */
 async function chat(stream, body, ip, opts = {}) {
-  const { conversationId, browserId, city, form, messages } = body;
+  const { conversationId, browserId, city, form } = body;
+  // Second line of defense (the member page checks first): Social Security, card, account, license
+  // numbers and birth dates never reach the model or the logs.
+  const removed = [];
+  const messages = Array.isArray(body.messages) ? body.messages.map((m) => {
+    const r = redact(m?.text);
+    removed.push(...r.removed);
+    return { role: m?.role, text: r.text };
+  }) : body.messages;
+  if (removed.length) console.log('removed personal details from a chat request:', [...new Set(removed)].join(', '));
   if (!ID.test(String(conversationId || ''))) return json(stream, 400, { error: 'conversationId required' });
   if (!Array.isArray(messages) || !messages.length || messages.length > 40) return json(stream, 400, { error: 'messages required' });
   const question = String(messages[messages.length - 1]?.text || '');
@@ -179,7 +189,8 @@ async function fillDoc(stream, body, ip) {
 }
 
 async function contact(stream, body, ip) {
-  const { conversationId, city, form, note, transcript } = body;
+  const { conversationId, city, form } = body;
+  const note = redact(body.note).text, transcript = redact(body.transcript).text;
   if (!String(note || '').trim() && !String(transcript || '').trim()) return json(stream, 400, { error: 'Add a note' });
   await saveContact({ conversationId, city, form, note, transcript, ip });
   return json(stream, 200, { ok: true });

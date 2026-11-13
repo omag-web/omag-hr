@@ -150,6 +150,9 @@ svg{flex:none}
 .doc-page.word table{border-collapse:collapse;width:100%}
 .doc-page.word td{border:1px solid #ddd;padding:4px 6px;vertical-align:top}
 .side-item span{overflow:hidden;text-overflow:ellipsis}
+.privacy-quote{padding:10px 12px;border-radius:10px;background:#f4f7fa;border:1px solid var(--line-2);font-size:14px;white-space:pre-wrap;max-height:180px;overflow:auto}
+.privacy-quote mark{background:#fde7b0;border-radius:3px;padding:0 2px}
+.privacy-note{display:block;margin-top:2px}
 .form-card{border:1px solid var(--line-2);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:14px;background:#fbfcfd}
 .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
 .field{display:flex;flex-direction:column;gap:6px}
@@ -347,6 +350,7 @@ svg{flex:none}
           </div>
         </div>
         <p class="disclaimer" id="disclaimer">Answers are general information, not legal advice. For your specific situation, consult your municipal attorney or OMAG Legal Services.</p>
+        <p class="disclaimer privacy-note">Please leave out names, ID numbers and medical details.</p>
       </form>
     </div>
   </div>
@@ -669,7 +673,7 @@ function renderRecent() {
   const box = $('#recent-list');
   box.innerHTML = list.length
     ? list.slice(0, 12).map((c) => `<button type="button" class="side-item${c.id === conv.id ? ' active' : ''}" data-conv="${esc(c.id)}"><span class="side-text">${esc(c.title || 'Conversation')}</span></button>`).join('')
-    : `<p class="side-empty">Your conversations are saved in this browser only.</p>`;
+    : `<p class="side-empty">Your recent conversations will appear here.</p>`;
 }
 function closeSidebar() { $('#sidebar').classList.remove('open'); }
 function setActive(id) { document.querySelectorAll('[data-conv]').forEach((b) => b.classList.toggle('active', b.dataset.conv === id)); }
@@ -1040,12 +1044,73 @@ function editDocument(id) {
   renderDocBlock(msg, { replace: document.querySelector(`[data-doc-msg="${id}"]`), focus: true });
 }
 
+/* ============ PRIVACY (same checks as backend/src/privacy.mjs) ============ */
+const PRIVACY = (() => {
+  const luhn = (d) => { let sum = 0; for (let i = 0; i < d.length; i++) { let x = +d[d.length - 1 - i]; if (i % 2) { x *= 2; if (x > 9) x -= 9; } sum += x; } return sum % 10 === 0; };
+  const MONTH = '(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)';
+  const DATE = `(?:\\d{1,2}[/.-]\\d{1,2}[/.-]\\d{2,4}|${MONTH}\\.? \\d{1,2},? \\d{4}|\\d{4}-\\d{2}-\\d{2})`;
+  const RULES = [
+    { type: 'ssn', label: 'a Social Security number', hard: true, re: /\b(?!000|666|9\d\d)\d{3}[- ](?!00)\d{2}[- ](?!0000)\d{4}\b|\b(?:ssn|ss#|social security(?: number| no\.?| #)?)\W{0,6}\d{9}\b/gi },
+    { type: 'card', label: 'a card number', hard: true, re: /\b(?:\d[ -]?){12,18}\d\b/g, check: (m) => { const d = m.replace(/\D/g, ''); return d.length >= 13 && d.length <= 19 && luhn(d); } },
+    { type: 'account', label: 'a bank account or routing number', hard: true, re: /\b(?:bank |checking |savings )?(?:account|acct|routing|aba)(?: number| no\.?| #)?\W{0,4}\d{6,17}\b/gi },
+    { type: 'dob', label: 'a date of birth', hard: true, re: new RegExp(`\\b(?:date of birth|dob|d\\.o\\.b\\.|birth ?date|birthday|born(?: on)?)\\W{0,6}${DATE}`, 'gi') },
+    { type: 'license', label: "a driver's license number", hard: true, re: /\b(?:driver'?s? licen[cs]e|dl|cdl)(?: number| no\.?| #)?\W{0,4}[a-z]?\d{6,10}\b/gi },
+    { type: 'email', label: 'an email address', hard: false, re: /\b[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}\b/gi },
+    { type: 'phone', label: 'a phone number', hard: false, re: /(?:\+?1[ .-]?)?\(?\b\d{3}\)?[ .-]\d{3}[ .-]\d{4}\b/g }
+  ];
+  function find(text) {
+    const out = [];
+    for (const r of RULES) for (const m of String(text).matchAll(r.re)) {
+      if (r.check && !r.check(m[0])) continue;
+      if (out.some((o) => m.index < o.index + o.text.length && o.index < m.index + m[0].length)) continue;
+      out.push({ type: r.type, label: r.label, hard: r.hard, text: m[0], index: m.index });
+    }
+    return out.sort((a, b) => a.index - b.index);
+  }
+  function remove(text, finds) {
+    let s = String(text);
+    for (const f of [...finds].reverse()) {
+      const lead = f.type === 'dob' ? f.text.match(/^(?:date of birth|dob|d\.o\.b\.|birth ?date|birthday|born(?: on)?)\W{0,6}/i)?.[0] || ''
+        : f.type === 'license' ? f.text.match(/^(?:driver'?s? licen[cs]e|dl|cdl)(?: number| no\.?| #)?\W{0,4}/i)?.[0] || ''
+        : /^[a-z]/i.test(f.text) && f.type !== 'email' ? f.text.match(/^\D*/)[0] : '';
+      s = s.slice(0, f.index) + lead + `[${f.label.replace(/^an? /, '')} removed]` + s.slice(f.index + f.text.length);
+    }
+    return s;
+  }
+  return { find, remove };
+})();
+let pendingQuestion = null;
+function sendWithPrivacyCheck(q) {
+  const finds = PRIVACY.find(q);
+  if (!finds.length) return ask(q);
+  pendingQuestion = { q, finds };
+  const kinds = [...new Set(finds.map((f) => f.label))];
+  const list = kinds.length === 1 ? kinds[0] : kinds.slice(0, -1).join(', ') + ' and ' + kinds.at(-1);
+  let shown = '', at = 0;
+  for (const f of finds) { shown += esc(q.slice(at, f.index)) + `<mark>${esc(f.text)}</mark>`; at = f.index + f.text.length; }
+  shown += esc(q.slice(at));
+  const onlySoft = finds.every((f) => !f.hard);
+  openModal('Leave out personal details?', `<div style="display:flex;flex-direction:column;gap:12px;font-size:15px;line-height:1.55">
+      <p style="margin:0">Your message looks like it includes <strong>${esc(list)}</strong>. Pip doesn't need personal details to answer, so it's best to leave them out.</p>
+      <div class="privacy-quote">${shown}</div>
+      ${onlySoft ? '' : '<p style="margin:0;font-size:13.5px;color:var(--muted)">ID numbers, account numbers and birth dates are always removed before your message is saved or sent to the AI.</p>'}
+    </div>`,
+    `<button type="button" class="btn" data-privacy="edit">Edit my message</button>${onlySoft ? '<button type="button" class="btn" data-privacy="asis">Send as is</button>' : ''}<button type="button" class="btn primary" data-privacy="remove">Remove ${finds.length === 1 ? 'it' : 'them'} and send</button>`);
+}
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-privacy]'); if (!b || !pendingQuestion) return;
+  const { q, finds } = pendingQuestion; pendingQuestion = null;
+  closeModal();
+  if (b.dataset.privacy === 'edit') { ta.value = q; ta.dispatchEvent(new Event('input')); ta.focus(); return; }
+  ask(b.dataset.privacy === 'asis' ? q : PRIVACY.remove(q, finds));
+});
+
 /* ============ EVENTS ============ */
 const ta = $('#prompt');
 function updateSend(){ $('#send').disabled = state.busy || !ta.value.trim(); }
 ta.addEventListener('input', ()=>{ ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,180)+'px'; updateSend(); });
 ta.addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); $('#composer').requestSubmit(); } });
-$('#composer').addEventListener('submit', e=>{ e.preventDefault(); const q=ta.value.trim(); if(!q||state.busy) return; ta.value=''; ta.style.height='auto'; updateSend(); ask(q); });
+$('#composer').addEventListener('submit', e=>{ e.preventDefault(); const q=ta.value.trim(); if(!q||state.busy) return; ta.value=''; ta.style.height='auto'; updateSend(); sendWithPrivacyCheck(q); });
 
 document.addEventListener('click', e=>{
   const sb=$('#sidebar'); if(sb.classList.contains('open') && !e.target.closest('#sidebar') && !e.target.closest('[data-action="menu"]')) closeSidebar();
