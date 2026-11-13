@@ -193,6 +193,16 @@ Resources:
         - Statement:
             - Effect: Allow
               Action:
+                - cognito-idp:ListUsers
+                - cognito-idp:AdminGetUser
+                - cognito-idp:AdminCreateUser
+                - cognito-idp:AdminDeleteUser
+                - cognito-idp:AdminDisableUser
+                - cognito-idp:AdminEnableUser
+                - cognito-idp:AdminResetUserPassword
+              Resource: !GetAtt AdminUserPool.Arn
+            - Effect: Allow
+              Action:
                 - bedrock:InvokeModel
                 - bedrock:InvokeModelWithResponseStream
               Resource:
@@ -253,7 +263,7 @@ Outputs:
     Description: The admin panel
     Value: https://omag-web.github.io/omag-hr/web/admin/
   UserPoolId:
-    Description: Add more admins here (Cognito console → this user pool → Users → Create user)
+    Description: The admin user pool (add admins on the Admins page of the admin panel)
     Value: !Ref AdminUserPool
   ApiUrl:
     Description: Put this in web/config.js as apiUrl
