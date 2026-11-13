@@ -39,7 +39,7 @@ The GPT has no statute text, so it cites Title 11, Title 40, etc. from model mem
 Browser (full-page chat, static site on S3/CloudFront or Vercel)
    │  POST /chat (streaming)
    ▼
-API Gateway + Lambda ── Bedrock Converse API ── Claude Sonnet (model ID in config)
+API Gateway + Lambda ── Bedrock Converse API ── OpenAI GPT-5.6 Terra (model ID in config)
    │                      │
    │                      └─ always loaded (prompt-cached): system prompt,
    │                         member's form-of-government template, FMLA policy
@@ -50,8 +50,8 @@ API Gateway + Lambda ── Bedrock Converse API ── Claude Sonnet (model ID 
 
 Decisions:
 
-- **Model:** Claude Sonnet via Amazon Bedrock, so data stays in OMAG's AWS account and bills through AWS. OpenAI GPT models are also on Bedrock. Keep the model ID in an environment variable and use the Converse API so switching is a config change. Test answers against both before launch.
-- **Retrieval:** use **S3 Vectors** or keep the corpus small enough to load with caching. **Avoid Bedrock Knowledge Bases on OpenSearch Serverless**: its idle minimum costs more than the model at this volume.
+- **Model:** OpenAI **GPT-5.6 Terra** via Amazon Bedrock (`us.openai.gpt-5.6-terra`, US-only routing), chosen November 2026. Data stays in OMAG's AWS account, usage bills through AWS, and no OpenAI account or key is needed. The model ID is a deploy setting and the code uses Bedrock's Converse API, so switching to Sol, Luna or a Claude model is a config change. Run the eval before switching.
+- **Retrieval:** the library (~1,500 sections, 3.4 MB) is small enough to search in memory with BM25 keyword search, with Pip choosing its own searches through tool calls. That needs no vector database and costs nothing extra. **Avoid Bedrock Knowledge Bases on OpenSearch Serverless**: its idle minimum costs more than the model at this volume. If keyword search turns out to miss things in testing, add embeddings with S3 Vectors.
 - **Model lifecycle:** check the chosen model's Bedrock model card for its end-of-life floor and notice period. Subscribe to AWS Health / EventBridge deprecation notices.
 - **Evaluation:** keep 30–50 real member questions with known-good answers as a script. Rerun it whenever the prompt, sources or model change.
 
@@ -83,9 +83,8 @@ Volume: ~1,300 conversations over 2 years (~54/month). Assumes ~6 exchanges per 
 
 | Model (Bedrock, US) | Per conversation | Per month | 2 years |
 |---|---|---|---|
-| Claude Sonnet 5.5 ($2.20 / $11 per M tokens) | ~$0.25 | ~$14 | ~$330 |
-| GPT-5.6 Terra ($2.20 / $13.20) | ~$0.26 | ~$14 | ~$345 |
-| Claude Opus 5.5 ($4 / $20) | ~$0.46 | ~$25 | ~$600 |
+| **GPT-5.6 Terra, chosen** ($2.20 / $13.20) | ~$0.26 | ~$14 | ~$345 |
+| Claude Sonnet 5.5 ($2.20 / $11), alternative | ~$0.25 | ~$14 | ~$330 |
 
 Lambda, API Gateway, S3, CloudFront and DynamoDB add a few dollars a month at most. Prompt caching lowers input cost further. Set a ~$50/month budget alert.
 
@@ -93,7 +92,7 @@ Rejected alternatives: **Glean** (internal-employee search, ~100-seat minimum ar
 
 ## Phases
 
-1. **Statute Q&A with citations:** system prompt, statute library, retrieval, streaming chat UI, city picker, logging.
+1. ✅ **Built (November 2026)**, ready to deploy (`docs/deploy.md`). **Statute Q&A with citations:** system prompt, statute library, retrieval, streaming chat UI, city picker, logging.
 2. **Document generation:** the four personnel templates + FMLA policy + acknowledgment receipt as fillable .docx.
 3. **Analytics dashboard and hardening:** WAF, budget alerts, evaluation script, review queue.
 

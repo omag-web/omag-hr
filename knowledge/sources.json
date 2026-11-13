@@ -1,0 +1,74 @@
+{
+  "_comment": "Which laws Pip can search. Oklahoma titles come from the Legislature's complete-title PDFs; federal parts come from the eCFR API. 'include' is a list of regular expressions matched against section ids like 11-12-106 or 25-307. Edit this file and re-run the 'Refresh statute library' workflow to change what Pip knows.",
+  "oklahoma": [
+    {
+      "title": "11",
+      "name": "Cities and Towns",
+      "url": "https://oklegislature.gov/OK_Statutes/CompleteTitles/os11.pdf",
+      "include": [
+        "^11-1-",
+        "^11-8-",
+        "^11-9-",
+        "^11-10-",
+        "^11-11-",
+        "^11-12-",
+        "^11-13-",
+        "^11-22-",
+        "^11-23-",
+        "^11-51-"
+      ],
+      "_why": "Definitions; officers generally (nepotism, removal); the four statutory forms of government (Art. 9-12) and charter cities (Art. 13); general powers; liability; fire/police collective bargaining (Art. 51)"
+    },
+    {
+      "title": "25",
+      "name": "Definitions and General Provisions",
+      "url": "https://oklegislature.gov/OK_Statutes/CompleteTitles/os25.pdf",
+      "include": ["^25-3(0[1-9]|1[0-4])(\\.|$)"],
+      "_why": "Open Meeting Act, including executive sessions on personnel matters (25 O.S. 307)"
+    },
+    {
+      "title": "40",
+      "name": "Labor",
+      "url": "https://oklegislature.gov/OK_Statutes/CompleteTitles/os40.pdf",
+      "include": ["^40-"],
+      "_why": "Wage payment, minimum wage, drug and alcohol testing act, workplace protections"
+    },
+    {
+      "title": "44",
+      "name": "Militia",
+      "url": "https://oklegislature.gov/OK_Statutes/CompleteTitles/os44.pdf",
+      "include": ["^44-20[89](\\.|$)", "^44-21[0-9](\\.|$)"],
+      "_why": "Military leave for public employees"
+    },
+    {
+      "title": "51",
+      "name": "Officers",
+      "url": "https://oklegislature.gov/OK_Statutes/CompleteTitles/os51.pdf",
+      "include": ["^51-1(5[1-9]|[6-9][0-9])(\\.|$)", "^51-200(\\.|$)", "^51-24A\\."],
+      "_why": "Governmental Tort Claims Act (151-200) and Open Records Act (24A), including personnel records"
+    },
+    {
+      "title": "63",
+      "name": "Public Health and Safety",
+      "url": "https://oklegislature.gov/OK_Statutes/CompleteTitles/os63.pdf",
+      "include": ["^63-42[0-9](\\.|$)", "^63-427\\."],
+      "_why": "Medical marijuana provisions, including employment protections"
+    },
+    {
+      "title": "85A",
+      "name": "Administrative Workers' Compensation System",
+      "url": "https://oklegislature.gov/OK_Statutes/CompleteTitles/os85A.pdf",
+      "include": ["^85A-"],
+      "_why": "Workers' compensation"
+    }
+  ],
+  "federal": [
+    { "title": 29, "part": "825", "name": "FMLA" },
+    { "title": 29, "part": "553", "name": "FLSA for state and local governments" },
+    { "title": 29, "part": "541", "name": "FLSA white-collar exemptions" },
+    { "title": 29, "part": "785", "name": "Hours worked" },
+    { "title": 29, "part": "1630", "name": "ADA employment (Title I)" },
+    { "title": 49, "part": "382", "name": "DOT drug and alcohol testing (CDL drivers)" },
+    { "title": 49, "part": "40", "name": "DOT testing procedures" }
+  ]
+}

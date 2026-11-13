@@ -1,0 +1,147 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Pip, OMAG's HR assistant — streaming chat API (Lambda Function URL + Amazon Bedrock + DynamoDB)
+
+Parameters:
+  ModelId:
+    Type: String
+    Default: us.openai.gpt-5.6-terra
+    Description: Bedrock inference profile ID. Default is OpenAI GPT-5.6 Terra, US-only routing. Alternatives are us.openai.gpt-5.6-sol (strongest) and us.openai.gpt-5.6-luna (cheapest); Claude profile IDs also work.
+  AllowedOrigins:
+    Type: CommaDelimitedList
+    Default: https://omag-web.github.io,http://localhost:8787
+    Description: Web origins allowed to call the API (no trailing slash). Add https://ask.omag.org etc. when you have it.
+  ContactEmail:
+    Type: String
+    Default: ''
+    Description: Email that receives "Talk to OMAG" messages (you'll get a confirmation email from AWS). Leave blank to only store them.
+  DailyLimitPerIp:
+    Type: Number
+    Default: 60
+    Description: Questions per IP address per day.
+  DailyLimitGlobal:
+    Type: Number
+    Default: 600
+    Description: Questions per day across everyone — a hard ceiling on spend.
+  RetentionDays:
+    Type: Number
+    Default: 730
+    Description: Days to keep conversation logs before DynamoDB deletes them.
+
+Conditions:
+  HasContactEmail: !Not [!Equals [!Ref ContactEmail, '']]
+
+Globals:
+  Function:
+    Tags:
+      app: pip
+
+Resources:
+  PipTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - { AttributeName: pk, AttributeType: S }
+        - { AttributeName: sk, AttributeType: S }
+      KeySchema:
+        - { AttributeName: pk, KeyType: HASH }
+        - { AttributeName: sk, KeyType: RANGE }
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      Tags:
+        - { Key: app, Value: pip }
+
+  ContactTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: Pip - Talk to OMAG
+      Tags:
+        - { Key: app, Value: pip }
+
+  ContactSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: HasContactEmail
+    Properties:
+      TopicArn: !Ref ContactTopic
+      Protocol: email
+      Endpoint: !Ref ContactEmail
+
+  PipFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Pip chat API
+      CodeUri: ./
+      Handler: src/handler.handler
+      Runtime: nodejs22.x
+      Architectures: [arm64]
+      MemorySize: 1024
+      Timeout: 120
+      ReservedConcurrentExecutions: 10
+      Environment:
+        Variables:
+          MODEL_ID: !Ref ModelId
+          TABLE_NAME: !Ref PipTable
+          CONTACT_TOPIC_ARN: !Ref ContactTopic
+          DAILY_LIMIT_PER_IP: !Ref DailyLimitPerIp
+          DAILY_LIMIT_GLOBAL: !Ref DailyLimitGlobal
+          RETENTION_DAYS: !Ref RetentionDays
+          HASH_SALT: !Ref AWS::StackId
+          NODE_OPTIONS: --enable-source-maps
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PipTable
+        - SNSPublishMessagePolicy:
+            TopicName: !GetAtt ContactTopic.TopicName
+        - Statement:
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+                - bedrock:InvokeModelWithResponseStream
+              Resource:
+                - arn:aws:bedrock:*::foundation-model/*
+                - !Sub arn:aws:bedrock:*:${AWS::AccountId}:inference-profile/*
+                - !Sub arn:aws:bedrock:*:${AWS::AccountId}:application-inference-profile/*
+      FunctionUrlConfig:
+        AuthType: NONE
+        InvokeMode: RESPONSE_STREAM
+        Cors:
+          AllowOrigins: !Ref AllowedOrigins
+          AllowMethods: [GET, POST]
+          AllowHeaders: [content-type]
+          MaxAge: 86400
+
+  PipFunctionLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${PipFunction}
+      RetentionInDays: 90
+
+  ErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: HasContactEmail
+    Properties:
+      AlarmDescription: Pip API is returning errors
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - { Name: FunctionName, Value: !Ref PipFunction }
+      Statistic: Sum
+      Period: 3600
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref ContactTopic]
+
+Outputs:
+  ApiUrl:
+    Description: Put this in web/config.js as apiUrl
+    Value: !GetAtt PipFunctionUrl.FunctionUrl
+  TableName:
+    Value: !Ref PipTable
+  ContactTopicArn:
+    Value: !Ref ContactTopic
