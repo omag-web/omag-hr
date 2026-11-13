@@ -62,6 +62,8 @@ export function defaultSettings() {
     dailyLimitPerIp: Number(process.env.DAILY_LIMIT_PER_IP || 60),
     dailyLimitGlobal: Number(process.env.DAILY_LIMIT_GLOBAL || 600),
     modelId: process.env.MODEL_ID || 'us.openai.gpt-5.6-terra',
+    // Used automatically for one answer if the main model is busy, down or retired. '' = no backup.
+    fallbackModelId: process.env.FALLBACK_MODEL_ID ?? 'us.openai.gpt-5.6-luna',
     // Bedrock price in US dollars per million tokens, for the cost estimate on the Analytics page.
     // 0 means "not set": the page shows token counts only.
     priceInputPerM: 0,
@@ -181,6 +183,11 @@ export async function saveSettings(input, by) {
   if ('modelId' in input) {
     if (!MODELS[input.modelId] && !/^[a-z0-9.:\-]{6,100}$/i.test(String(input.modelId))) throw Object.assign(new Error('Unknown model.'), { status: 400 });
     s.modelId = String(input.modelId);
+  }
+  if ('fallbackModelId' in input) {
+    const v = String(input.fallbackModelId || '');
+    if (v && !MODELS[v] && !/^[a-z0-9.:\-]{6,100}$/i.test(v)) throw Object.assign(new Error('Unknown backup model.'), { status: 400 });
+    s.fallbackModelId = v;
   }
   await kv.put({ pk: 'CONFIG', sk: 'settings', ...s, updatedAt: new Date().toISOString(), updatedBy: by });
   invalidateConfig();

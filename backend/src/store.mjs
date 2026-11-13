@@ -9,6 +9,7 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { SNSClient, PublishCommand } from '@aws-sdk/client-sns';
 import { kv } from './storage.mjs';
+import { metric } from './metrics.mjs';
 
 const TABLE = () => process.env.TABLE_NAME;
 const RETENTION_DAYS = () => Number(process.env.RETENTION_DAYS || 730);
@@ -38,8 +39,8 @@ export async function checkRateLimit(ip, { perIp = 60, global = 600 } = {}) {
       throw e;
     }
   };
-  if (!(await bump(`RATE#global#${day()}`, global))) return { ok: false, reason: 'Pip has reached its daily limit. Please try again tomorrow, or contact OMAG directly.' };
-  if (!(await bump(`RATE#ip#${hash(ip)}#${day()}`, perIp))) return { ok: false, reason: "You've reached today's question limit. Please try again tomorrow, or contact OMAG directly." };
+  if (!(await bump(`RATE#global#${day()}`, global))) { metric('GlobalLimitReached'); return { ok: false, reason: 'Pip has reached its daily limit. Please try again tomorrow, or contact OMAG directly.' }; }
+  if (!(await bump(`RATE#ip#${hash(ip)}#${day()}`, perIp))) { metric('PersonLimitReached'); return { ok: false, reason: "You've reached today's question limit. Please try again tomorrow, or contact OMAG directly." }; }
   return { ok: true };
 }
 

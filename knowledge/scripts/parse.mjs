@@ -19,7 +19,11 @@ export function parseOklahomaText(text, { title, name, url }) {
     // running page headers / footers, and table-of-contents dot leaders
     .filter((l) => !/^\s*Oklahoma Statutes\s*-\s*Title\s+\S+/i.test(l))
     .filter((l) => !/^\s*Page\s+\d+(\s+of\s+\d+)?\s*$/i.test(l))
-    .filter((l) => !/\.{5,}/.test(l));
+    .filter((l) => !/\.{5,}/.test(l))
+    // A heading can start mid-line, right after the previous section's history note:
+    //   "...Laws 1977, c. 256, § 22-101, eff. July 1, 1978. §11-22-101.1. Political activities..."
+    // Split there so it becomes its own section (only for headings in this title, after a period).
+    .flatMap((l) => l.split(new RegExp(`(?<=[.)\\]])\\s+(?=§\\s*${String(title).replace(/[^0-9A-Z]/gi, '')}-[0-9A-Za-z.\\-]*[0-9A-Za-z]\\.\\s+[A-Z])`)));
 
   const HEAD = /^\s*§\s*(\d+[A-Z]?-[0-9A-Za-z.\-]*[0-9A-Za-z])\.\s+(.*)$/;
   const sections = [];

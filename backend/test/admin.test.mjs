@@ -273,6 +273,10 @@ test('admins: invite, resend, turn off and on, remove; can’t lock yourself or 
   assert.equal((await call('POST', `/admin/admins/${js.username}/resend`)).statusCode, 400, 'turned-off admins get no invite');
   r = (await call('POST', `/admin/admins/${js.username}/enable`)).json;
   assert.equal(r.admins.find((a) => a.username === js.username).enabled, true);
+  assert.equal(r.admins.find((a) => a.username === js.username).mfa, false, 'two-step status is listed');
+  r = (await call('POST', `/admin/admins/${js.username}/reset-mfa`)).json;
+  assert.match(r.message, /two-step/);
+  assert.equal((await call('POST', `/admin/admins/${me.username}/reset-mfa`)).statusCode, 400, 'not on yourself');
   r = (await call('DELETE', `/admin/admins/${js.username}`)).json;
   assert.ok(!r.admins.some((a) => a.username === js.username));
 });

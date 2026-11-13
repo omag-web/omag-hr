@@ -172,6 +172,9 @@ details summary{cursor:pointer;font-weight:600;font-size:14px}
   .g4{grid-template-columns:repeat(2,minmax(0,1fr))}
   .g2,.split{grid-template-columns:1fr}
 }
+.mfa-qr{display:flex;flex-direction:column;align-items:center;gap:6px;margin:12px 0 4px}
+.mfa-qr svg{width:180px;height:180px;background:#fff;border-radius:8px}
+.mfa-qr .mono{font-size:12px;word-break:break-all;text-align:center}
 </style>
 </head>
 <body>
@@ -192,6 +195,15 @@ details summary{cursor:pointer;font-weight:600;font-size:14px}
       <p class="hint" style="margin:0">We emailed a code to your address. Enter it and choose a new password.</p>
       <div class="field" style="margin-top:10px"><label for="li-code">Code</label><input class="input" id="li-code" inputmode="numeric" autocomplete="one-time-code"></div>
       <div class="field" style="margin-top:10px"><label for="li-reset-pw">New password</label><input class="input" id="li-reset-pw" type="password" autocomplete="new-password"></div>
+    </div>
+    <div id="login-step-mfa" hidden>
+      <p class="hint" style="margin:0">Open your authenticator app and enter the 6-digit code for Pip admin.</p>
+      <div class="field" style="margin-top:10px"><label for="li-mfa">Code</label><input class="input" id="li-mfa" inputmode="numeric" autocomplete="one-time-code" maxlength="6"></div>
+    </div>
+    <div id="login-step-mfasetup" hidden>
+      <p class="hint" style="margin:0">Two-step sign-in is required. Scan this with an authenticator app (Microsoft Authenticator, Google Authenticator, Authy), then enter the 6-digit code it shows.</p>
+      <div class="mfa-qr" id="li-qr"></div>
+      <div class="field" style="margin-top:10px"><label for="li-setup-code">Code</label><input class="input" id="li-setup-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6"></div>
     </div>
     <div class="err" id="login-err" role="alert"></div>
     <button class="btn primary" type="submit" id="login-btn">Sign in</button>
@@ -410,6 +422,7 @@ details summary{cursor:pointer;font-weight:600;font-size:14px}
           <div class="card">
             <h2>Model &amp; limits</h2>
             <div class="field" style="margin-top:10px"><label for="set-model">AI model</label><select class="select" id="set-model"></select><span class="hint">Run a few questions in the Instructions preview after switching.</span></div>
+            <div class="field" style="margin-top:10px"><label for="set-fallback">Backup model</label><select class="select" id="set-fallback"></select><span class="hint">Used automatically for an answer if the main model is busy or unavailable. Alarm emails tell you when it happens often.</span></div>
             <div class="grid g2" style="margin-top:10px;gap:10px">
               <div class="field"><label for="set-ip">Questions per person per day</label><input class="input" id="set-ip" type="number" min="0"></div>
               <div class="field"><label for="set-global">Questions per day, everyone</label><input class="input" id="set-global" type="number" min="0"></div>
@@ -470,6 +483,17 @@ details summary{cursor:pointer;font-weight:600;font-size:14px}
       <div class="split">
         <div class="card" style="padding:6px 6px 0"><div id="adm-table"></div></div>
         <div class="grid" style="gap:16px">
+          <div class="card" id="mfa-card">
+            <h2>Your sign-in</h2>
+            <p class="sub" id="mfa-status">Checking…</p>
+            <div id="mfa-setup" hidden>
+              <p class="hint" style="margin:0">1. Install an authenticator app on your phone (Microsoft Authenticator, Google Authenticator or Authy).<br>2. In the app, add an account and scan this code.<br>3. Type the 6-digit code the app shows.</p>
+              <div class="mfa-qr" id="mfa-qr"></div>
+              <div class="field"><label for="mfa-code">6-digit code</label><input class="input" id="mfa-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6"></div>
+              <div class="row" style="justify-content:flex-end;margin-top:12px"><button class="btn" type="button" id="mfa-cancel">Cancel</button><button class="btn primary" type="button" id="mfa-verify">Turn on</button></div>
+            </div>
+            <div class="row" style="justify-content:flex-end;margin-top:4px" id="mfa-actions"></div>
+          </div>
           <form class="card" id="adm-form">
             <h2>Invite an admin</h2>
             <p class="sub">They get an email from <span class="mono">no-reply@verificationemail.com</span> with a temporary password, good for 7 days. Tell them to check Junk.</p>
@@ -482,6 +506,7 @@ details summary{cursor:pointer;font-weight:600;font-size:14px}
             <p style="margin:6px 0"><strong>Reset password</strong>: for someone who's locked out. Emails them a code; they use "Forgot password?" on the sign-in page.</p>
             <p style="margin:6px 0"><strong>Turn off</strong>: they can't sign in, and are signed out within a minute. Reversible.</p>
             <p style="margin:6px 0"><strong>Remove</strong>: deletes their account. To add them back, invite them again.</p>
+            <p style="margin:6px 0"><strong>Reset two-step</strong>: for someone who lost or replaced their phone. They sign in with just their password, then set it up again.</p>
             <p style="margin:6px 0">You can't turn off or remove yourself.</p>
           </div>
         </div>
@@ -516,12 +541,14 @@ const tok = {
   get id() { return sessionStorage.getItem('pip.admin.id'); },
   get refresh() { return sessionStorage.getItem('pip.admin.refresh'); },
   get email() { return sessionStorage.getItem('pip.admin.email'); },
+  get access() { return sessionStorage.getItem('pip.admin.access'); },
   set(r, email) {
     if (r.IdToken) sessionStorage.setItem('pip.admin.id', r.IdToken);
+    if (r.AccessToken) sessionStorage.setItem('pip.admin.access', r.AccessToken);
     if (r.RefreshToken) sessionStorage.setItem('pip.admin.refresh', r.RefreshToken);
     if (email) sessionStorage.setItem('pip.admin.email', email);
   },
-  clear() { ['id', 'refresh', 'email'].forEach((k) => sessionStorage.removeItem('pip.admin.' + k)); }
+  clear() { ['id', 'refresh', 'email', 'access'].forEach((k) => sessionStorage.removeItem('pip.admin.' + k)); }
 };
 async function cognito(target, body) {
   const r = await fetch(`https://cognito-idp.${AUTH.region}.amazonaws.com/`, {
@@ -539,7 +566,8 @@ async function cognito(target, body) {
       CodeMismatchException: 'That code isn’t right.',
       ExpiredCodeException: 'That code expired. Click "Forgot password?" again.',
       LimitExceededException: 'Too many attempts. Wait a few minutes and try again.',
-      PasswordResetRequiredException: 'You need to reset your password. Click "Forgot password?".'
+      PasswordResetRequiredException: 'You need to reset your password. Click "Forgot password?".',
+      EnableSoftwareTokenMFAException: 'That code isn’t right. Check the time on your phone is set automatically, and try the newest code.'
     }[type] || j.message || 'Sign-in failed.';
     if (type === 'NotAuthorizedException' && /disabled/i.test(j.message || '')) throw Object.assign(new Error('Your admin access is turned off. Ask another admin if you need it back.'), { type });
     throw Object.assign(new Error(msg), { type });
@@ -567,9 +595,45 @@ function setLoginStep(step) {
   $('#login-step-pw').hidden = step !== 'pw';
   $('#login-step-new').hidden = step !== 'new';
   $('#login-step-reset').hidden = step !== 'reset';
+  $('#login-step-mfa').hidden = step !== 'mfa';
+  $('#login-step-mfasetup').hidden = step !== 'mfasetup';
   $('#forgot-btn').hidden = step !== 'pw';
-  $('#login-btn').textContent = { pw: 'Sign in', new: 'Set password and sign in', reset: 'Reset password' }[step];
+  $('#login-btn').textContent = { pw: 'Sign in', new: 'Set password and sign in', reset: 'Reset password', mfa: 'Verify', mfasetup: 'Turn on and sign in' }[step];
   $('#li-pw').required = step === 'pw';
+}
+/** Follows Cognito's next step. Returns true once fully signed in. */
+async function signedIn(r) {
+  if (r.AuthenticationResult) { tok.set(r.AuthenticationResult, loginState.email); return true; }
+  loginState.session = r.Session;
+  if (r.ChallengeName === 'NEW_PASSWORD_REQUIRED') { setLoginStep('new'); $('#li-new').focus(); return false; }
+  if (r.ChallengeName === 'SOFTWARE_TOKEN_MFA') { setLoginStep('mfa'); $('#li-mfa').focus(); return false; }
+  if (r.ChallengeName === 'MFA_SETUP') {
+    const a = await cognito('AssociateSoftwareToken', { Session: r.Session });
+    loginState.session = a.Session;
+    await showQr($('#li-qr'), a.SecretCode, loginState.email);
+    setLoginStep('mfasetup'); $('#li-setup-code').focus(); return false;
+  }
+  throw new Error('Unexpected sign-in step: ' + r.ChallengeName);
+}
+let qrLib = null;
+function loadQr() {
+  if (window.qrcode) return Promise.resolve(window.qrcode);
+  return qrLib ||= new Promise((res, rej) => {
+    const sc = document.createElement('script');
+    sc.src = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js';
+    sc.integrity = 'sha384-8FWZA6BGMXhsfO+BLtrJK0We6gg5o1JyO8xQm6peWDEUs17ACA5ziE/NIAkl9z2k';
+    sc.crossOrigin = 'anonymous';
+    sc.onload = () => res(window.qrcode); sc.onerror = () => { qrLib = null; rej(new Error('QR code unavailable')); };
+    document.head.appendChild(sc);
+  });
+}
+/** Draws the authenticator QR code, with the key as text for typing in by hand. */
+async function showQr(el, secret, email) {
+  const uri = `otpauth://totp/${encodeURIComponent('OMAG Pip admin:' + email)}?secret=${secret}&issuer=${encodeURIComponent('OMAG Pip admin')}`;
+  const key = secret.replace(/(.{4})/g, '$1 ').trim();
+  let svg = '';
+  try { const q = (await loadQr())(0, 'M'); q.addData(uri); q.make(); svg = q.createSvgTag(4, 8); } catch { /* text key still works */ }
+  el.innerHTML = `${svg}<div class="hint">Can't scan? Choose "enter a setup key" in the app and type:</div><div class="mono">${esc(key)}</div>`;
 }
 $('#login-form').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -578,16 +642,22 @@ $('#login-form').addEventListener('submit', async (e) => {
     if (loginState.step === 'pw') {
       loginState.email = $('#li-email').value.trim().toLowerCase();
       const r = await cognito('InitiateAuth', { AuthFlow: 'USER_PASSWORD_AUTH', ClientId: AUTH.clientId, AuthParameters: { USERNAME: loginState.email, PASSWORD: $('#li-pw').value.trim() } });
-      if (r.ChallengeName === 'NEW_PASSWORD_REQUIRED') { loginState.session = r.Session; setLoginStep('new'); $('#li-new').focus(); return; }
-      tok.set(r.AuthenticationResult, loginState.email);
+      if (!(await signedIn(r))) return;
     } else if (loginState.step === 'new') {
       const r = await cognito('RespondToAuthChallenge', { ChallengeName: 'NEW_PASSWORD_REQUIRED', ClientId: AUTH.clientId, Session: loginState.session, ChallengeResponses: { USERNAME: loginState.email, NEW_PASSWORD: $('#li-new').value.trim() } });
-      tok.set(r.AuthenticationResult, loginState.email);
+      if (!(await signedIn(r))) return;
+    } else if (loginState.step === 'mfa') {
+      const r = await cognito('RespondToAuthChallenge', { ChallengeName: 'SOFTWARE_TOKEN_MFA', ClientId: AUTH.clientId, Session: loginState.session, ChallengeResponses: { USERNAME: loginState.email, SOFTWARE_TOKEN_MFA_CODE: $('#li-mfa').value.trim() } });
+      if (!(await signedIn(r))) return;
+    } else if (loginState.step === 'mfasetup') {
+      const v = await cognito('VerifySoftwareToken', { Session: loginState.session, UserCode: $('#li-setup-code').value.trim(), FriendlyDeviceName: 'Pip admin' });
+      const r = await cognito('RespondToAuthChallenge', { ChallengeName: 'MFA_SETUP', ClientId: AUTH.clientId, Session: v.Session, ChallengeResponses: { USERNAME: loginState.email } });
+      if (!(await signedIn(r))) return;
     } else {
       await cognito('ConfirmForgotPassword', { ClientId: AUTH.clientId, Username: loginState.email, ConfirmationCode: $('#li-code').value.trim(), Password: $('#li-reset-pw').value.trim() });
       setLoginStep('pw'); $('#li-pw').value = ''; $('#login-err').textContent = ''; toast('Password reset. Sign in with your new password.'); return;
     }
-    $('#li-pw').value = ''; $('#li-new').value = '';
+    ['#li-pw', '#li-new', '#li-mfa', '#li-setup-code'].forEach((s) => ($(s).value = ''));
     startApp();
   } catch (err) {
     $('#login-err').textContent = err.message;
@@ -1199,6 +1269,8 @@ loaders.settings = async () => {
   $('#set-pin').value = settings.priceInputPerM || 0; $('#set-pout').value = settings.priceOutputPerM || 0;
   const models = { ...r.models }; if (!models[settings.modelId]) models[settings.modelId] = settings.modelId;
   $('#set-model').innerHTML = Object.entries(models).map(([id, label]) => `<option value="${esc(id)}" ${id === settings.modelId ? 'selected' : ''}>${esc(label)}</option>`).join('');
+  const backups = { '': 'None (show an error instead)', ...r.models }; const fb = settings.fallbackModelId || ''; if (!(fb in backups)) backups[fb] = fb;
+  $('#set-fallback').innerHTML = Object.entries(backups).map(([id, label]) => `<option value="${esc(id)}" ${id === fb ? 'selected' : ''}>${esc(label)}</option>`).join('');
   $('#set-starters').innerHTML = settings.starters.map(starterRow).join('');
 };
 $('#set-add-starter').addEventListener('click', () => { if ($$('.starter').length >= 6) return toast('Up to 6 starters.'); $('#set-starters').insertAdjacentHTML('beforeend', starterRow()); });
@@ -1208,7 +1280,7 @@ $('#set-save').addEventListener('click', async () => {
     const starters = $$('.starter').map((r) => ({ kicker: $('[data-k=kicker]', r).value, text: $('[data-k=text]', r).value, doc: $('[data-k=doc]', r).checked }));
     await api('PUT', '/admin/settings', {
       welcomeText: $('#set-welcome').value, disclaimer: $('#set-disclaimer').value, contactPhone: $('#set-phone').value, privacyNotice: $('#set-privacy').value,
-      starters, dailyLimitPerIp: Number($('#set-ip').value), dailyLimitGlobal: Number($('#set-global').value), modelId: $('#set-model').value,
+      starters, dailyLimitPerIp: Number($('#set-ip').value), dailyLimitGlobal: Number($('#set-global').value), modelId: $('#set-model').value, fallbackModelId: $('#set-fallback').value,
       priceInputPerM: Number($('#set-pin').value || 0), priceOutputPerM: Number($('#set-pout').value || 0)
     });
     await loaders.settings(); toast('Settings saved. Members see them within a minute.');
@@ -1298,7 +1370,7 @@ const ADM_STATUS = {
 };
 function renderAdmins(r) {
   const rows = r.admins;
-  $('#adm-table').innerHTML = `<table><thead><tr><th>Admin</th><th>Status</th><th></th></tr></thead><tbody>${rows.map((u) => {
+  $('#adm-table').innerHTML = `<table><thead><tr><th>Admin</th><th>Status</th><th>Two-step</th><th></th></tr></thead><tbody>${rows.map((u) => {
     const [label, tone, note] = !u.enabled ? ['Turned off', 'muted', 'Can’t sign in'] : ADM_STATUS[u.status] || [u.status, 'muted', ''];
     const invited = u.status === 'FORCE_CHANGE_PASSWORD';
     const expired = invited && u.updatedAt && Date.now() - new Date(u.updatedAt) > 7 * 86400000;
@@ -1306,7 +1378,9 @@ function renderAdmins(r) {
     return `<tr>
       <td><strong>${esc(u.email)}</strong>${u.you ? ' <span class="pill muted">You</span>' : ''}<div class="hint">Added ${fmtDate(u.createdAt)}</div></td>
       <td><span class="pill ${expired ? 'bad' : tone}">${expired ? 'Invite expired' : label}</span>${note && !expired ? `<div class="hint" style="margin-top:3px">${note}</div>` : ''}</td>
+      <td>${u.mfa === true ? '<span class="pill ok">On</span>' : u.mfa === false ? '<span class="pill muted">Off</span>' : ''}</td>
       <td style="text-align:right;white-space:nowrap">${u.you ? '' : `
+        ${u.mfa ? `<button class="btn sm" data-adm="reset-mfa" data-id="${id}">Reset two-step</button>` : ''}
         ${u.enabled ? `<button class="btn sm" data-adm="resend" data-id="${id}">${invited ? 'Resend invite' : 'Reset password'}</button>` : ''}
         <button class="btn sm" data-adm="${u.enabled ? 'disable' : 'enable'}" data-id="${id}">${u.enabled ? 'Turn off' : 'Turn on'}</button>
         <button class="btn sm danger" data-adm="remove" data-id="${id}">Remove</button>`}</td>
@@ -1315,7 +1389,55 @@ function renderAdmins(r) {
   admins = rows;
 }
 let admins = [];
-loaders.admins = async () => renderAdmins(await api('GET', '/admin/admins'));
+loaders.admins = async () => { renderAdmins(await api('GET', '/admin/admins')); loadMfa(); };
+
+/* ---- your own two-step sign-in (authenticator app) ---- */
+/** Calls Cognito with your access token, refreshing it once if it has expired. */
+async function withAccess(target, body) {
+  try { return await cognito(target, { ...body, AccessToken: tok.access }); }
+  catch (e) {
+    if (e.type !== 'NotAuthorizedException' || !(await refreshToken())) throw e;
+    return cognito(target, { ...body, AccessToken: tok.access });
+  }
+}
+async function loadMfa() {
+  $('#mfa-setup').hidden = true;
+  const status = $('#mfa-status'), actions = $('#mfa-actions');
+  actions.innerHTML = '';
+  if (AUTH.local) { status.textContent = 'Two-step sign-in is set up on the live admin panel, not in local mode.'; return; }
+  if (!tok.access && !(await refreshToken())) { status.textContent = 'Sign out and back in to manage two-step sign-in.'; return; }
+  try {
+    const u = await withAccess('GetUser', {});
+    const on = (u.UserMFASettingList || []).includes('SOFTWARE_TOKEN_MFA');
+    status.innerHTML = on
+      ? '<span class="pill ok">Two-step sign-in is on</span><br>You enter a code from your authenticator app after your password.'
+      : '<span class="pill warn">Two-step sign-in is off</span><br>Admins can read every member conversation. Turn this on so a leaked password isn’t enough to get in.';
+    actions.innerHTML = on ? '<button class="btn sm" id="mfa-off">Turn off</button>' : '<button class="btn primary" id="mfa-on">Set up two-step sign-in</button>';
+  } catch (e) { status.textContent = 'Couldn’t check two-step sign-in: ' + e.message; }
+}
+$('#mfa-actions').addEventListener('click', async (e) => {
+  if (e.target.id === 'mfa-on') {
+    try {
+      const a = await withAccess('AssociateSoftwareToken', {});
+      await showQr($('#mfa-qr'), a.SecretCode, tok.email || '');
+      $('#mfa-setup').hidden = false; $('#mfa-actions').innerHTML = ''; $('#mfa-code').value = ''; $('#mfa-code').focus();
+    } catch (err) { toast(err.message); }
+  }
+  if (e.target.id === 'mfa-off') {
+    if (!confirm('Turn off two-step sign-in? You’ll sign in with just your password.')) return;
+    try { await withAccess('SetUserMFAPreference', { SoftwareTokenMfaSettings: { Enabled: false, PreferredMfa: false } }); toast('Two-step sign-in is off.'); loaders.admins(); } catch (err) { toast(err.message); }
+  }
+});
+$('#mfa-cancel').addEventListener('click', loadMfa);
+$('#mfa-verify').addEventListener('click', async () => {
+  const btn = $('#mfa-verify'); btn.disabled = true;
+  try {
+    await withAccess('VerifySoftwareToken', { UserCode: $('#mfa-code').value.trim(), FriendlyDeviceName: 'Pip admin' });
+    await withAccess('SetUserMFAPreference', { SoftwareTokenMfaSettings: { Enabled: true, PreferredMfa: true } });
+    toast('Two-step sign-in is on. Next time, you’ll enter a code from the app after your password.');
+    loaders.admins();
+  } catch (err) { toast(err.message); } finally { btn.disabled = false; }
+});
 $('#adm-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const email = $('#adm-email').value.trim(); if (!email) return;
@@ -1331,6 +1453,7 @@ $('#adm-table').addEventListener('click', async (e) => {
     resend: u.status === 'FORCE_CHANGE_PASSWORD' ? `Send ${u.email} a new invitation? Their old temporary password stops working.` : `Email ${u.email} a password-reset code? Their current password stops working until they choose a new one.`,
     disable: `Turn off ${u.email}'s access? They'll be signed out within a minute. You can turn it back on later.`,
     enable: null,
+    'reset-mfa': `Turn off two-step sign-in for ${u.email}? Do this only if they lost or replaced their phone, and you've confirmed it's really them. They'll sign in with just their password and should set it up again.`,
     remove: `Remove ${u.email}? Their account is deleted; to add them back, invite them again.`
   }[act];
   if (ask && !confirm(ask)) return;

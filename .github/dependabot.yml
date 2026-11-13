@@ -1,0 +1,19 @@
+# Weekly pull requests when Pip's packages or GitHub Actions have updates.
+# Security fixes arrive as soon as they're published. Merging one deploys it,
+# so check the PR's tests passed first.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /backend
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    groups:
+      aws-sdk:
+        patterns: ["@aws-sdk/*", "@smithy/*"]
+      everything-else:
+        patterns: ["*"]
+        exclude-patterns: ["@aws-sdk/*", "@smithy/*"]
+        update-types: [minor, patch]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: monthly }

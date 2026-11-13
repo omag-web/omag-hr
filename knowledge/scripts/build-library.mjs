@@ -69,6 +69,15 @@ for (const src of cfg.federal) sections.push(...(await federal(src, dates[src.ti
 const seen = new Set();
 const unique = sections.filter((s) => (seen.has(s.id) ? false : seen.add(s.id)));
 
+// Sections Pip relies on. If any is missing, the parser or a source changed: stop rather than
+// publish a library that silently lacks them (Pip keeps using the last good one).
+const missing = (cfg.required || []).filter((id) => !seen.has(id));
+if (missing.length) throw new Error(`Required sections missing from the build: ${missing.join(', ')}. Check the parser or knowledge/sources.json.`);
+
+// Sections that ended up inside another section usually mean a heading wasn't recognized.
+const glued = unique.filter((s) => s.jurisdiction === 'OK' && /\n\s*§\s*\d+[A-Z]?-[0-9A-Za-z.\-]*[0-9A-Za-z]\.\s+[A-Z]/.test(s.text)).map((s) => s.id);
+if (glued.length) console.warn(`Warning: ${glued.length} sections contain another section's heading: ${glued.slice(0, 20).join(', ')}`);
+
 const library = {
   builtAt: new Date().toISOString(),
   sources: {

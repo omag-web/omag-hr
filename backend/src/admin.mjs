@@ -8,7 +8,7 @@ import { listTurns, getConversation, listContacts, usageStats } from './store.mj
 import { analytics } from './analytics.mjs';
 import { listTemplates, getTemplate, createTemplate, updateTemplate, deleteTemplate, variantUploadUrl, attachVariant, removeVariant, fillTemplate, exportPack, importPack, importUploadUrl, VARIANT_LABEL, FIELD_TYPES, PREFILLS } from './templates.mjs';
 import { blobs } from './storage.mjs';
-import { listAdmins, inviteAdmin, resendAccess, setAdminEnabled, removeAdmin } from './admins.mjs';
+import { listAdmins, inviteAdmin, resendAccess, setAdminEnabled, removeAdmin, resetMfa } from './admins.mjs';
 
 const routes = [];
 const on = (method, pattern, fn) => routes.push({ method, re: new RegExp('^' + pattern.replace(/:(\w+)/g, '(?<$1>[A-Za-z0-9_\\-]+)') + '$'), fn });
@@ -40,6 +40,7 @@ on('POST', '/admin/admins', async ({ body, admin }) => { const u = await inviteA
 on('POST', '/admin/admins/:id/resend', async ({ params, admin }) => withYou(admin, await resendAccess(params.id)));
 on('POST', '/admin/admins/:id/disable', async ({ params, admin }) => { const r = await setAdminEnabled(params.id, false, admin); console.log('admin disabled', params.id, 'by', admin.email); return withYou(admin, r); });
 on('POST', '/admin/admins/:id/enable', async ({ params, admin }) => { const r = await setAdminEnabled(params.id, true, admin); console.log('admin enabled', params.id, 'by', admin.email); return withYou(admin, r); });
+on('POST', '/admin/admins/:id/reset-mfa', async ({ params, admin }) => { const r = await resetMfa(params.id, admin); console.log('admin MFA reset', params.id, 'by', admin.email); return withYou(admin, r); });
 on('DELETE', '/admin/admins/:id', async ({ params, admin }) => { const r = await removeAdmin(params.id, admin); console.log('admin removed', params.id, 'by', admin.email); return withYou(admin, r); });
 
 /* document templates */

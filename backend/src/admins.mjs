@@ -3,7 +3,8 @@
 
 import {
   CognitoIdentityProviderClient, ListUsersCommand, AdminCreateUserCommand, AdminDeleteUserCommand,
-  AdminDisableUserCommand, AdminEnableUserCommand, AdminGetUserCommand, AdminResetUserPasswordCommand
+  AdminDisableUserCommand, AdminEnableUserCommand, AdminGetUserCommand, AdminResetUserPasswordCommand,
+  AdminSetUserMFAPreferenceCommand
 } from '@aws-sdk/client-cognito-identity-provider';
 
 const err = (msg, status = 400) => Object.assign(new Error(msg), { status });
@@ -13,7 +14,7 @@ const cognito = () => (client ||= new CognitoIdentityProviderClient({}));
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 /* ---------- local stand-in ---------- */
-const local = new Map([['local-dev', { username: 'local-dev', email: 'local-dev', status: 'CONFIRMED', enabled: true, createdAt: new Date().toISOString() }]]);
+const local = new Map([['local-dev', { username: 'local-dev', email: 'local-dev', status: 'CONFIRMED', enabled: true, mfa: false, createdAt: new Date().toISOString() }]]);
 export function _resetLocal() {
   for (const k of [...local.keys()]) if (k !== 'local-dev') local.delete(k);
 }
@@ -25,7 +26,8 @@ const fromCognito = (u) => ({
   status: u.UserStatus,
   enabled: u.Enabled !== false,
   createdAt: u.UserCreateDate ? new Date(u.UserCreateDate).toISOString() : null,
-  updatedAt: u.UserLastModifiedDate ? new Date(u.UserLastModifiedDate).toISOString() : null
+  updatedAt: u.UserLastModifiedDate ? new Date(u.UserLastModifiedDate).toISOString() : null,
+  ...(u.UserMFASettingList ? { mfa: u.UserMFASettingList.includes('SOFTWARE_TOKEN_MFA') } : {})
 });
 
 export async function listAdmins() {
@@ -37,6 +39,13 @@ export async function listAdmins() {
     out.push(...r.Users.map(fromCognito));
     token = r.PaginationToken;
   } while (token);
+  // ListUsers doesn't say who has two-step sign-in; ask per admin (a handful of people).
+  await Promise.all(out.map(async (u) => {
+    try {
+      const full = await cognito().send(new AdminGetUserCommand({ UserPoolId: pool(), Username: u.username }));
+      u.mfa = (full.UserMFASettingList || []).includes('SOFTWARE_TOKEN_MFA');
+    } catch { u.mfa = null; }
+  }));
   return out.sort((a, b) => a.email.localeCompare(b.email));
 }
 
@@ -61,7 +70,7 @@ export async function inviteAdmin(rawEmail) {
   const all = await listAdmins();
   if (all.some((u) => u.email.toLowerCase() === email)) throw err(`${email} is already an admin.`);
   if (!pool()) {
-    const u = { username: `local-${local.size}`, email, status: 'FORCE_CHANGE_PASSWORD', enabled: true, createdAt: new Date().toISOString() };
+    const u = { username: `local-${local.size}`, email, status: 'FORCE_CHANGE_PASSWORD', enabled: true, mfa: false, createdAt: new Date().toISOString() };
     local.set(u.username, u);
     return u;
   }
@@ -113,6 +122,15 @@ export async function setAdminEnabled(username, enabled, me) {
   else await cognito().send(new (enabled ? AdminEnableUserCommand : AdminDisableUserCommand)({ UserPoolId: pool(), Username: username }));
   forget(username);
   return { message: enabled ? `${target.email} can sign in again.` : `${target.email} can’t sign in any more. Turn it back on any time.` };
+}
+
+/** For an admin who lost their phone: turn off their two-step sign-in so they can sign in with just a password and set it up again. */
+export async function resetMfa(username, me) {
+  const target = await getAdmin(username);
+  if (target.username === me.username || target.email.toLowerCase() === String(me.email || '').toLowerCase()) throw err('Turn off your own two-step sign-in from the "Your sign-in" box instead.');
+  if (!pool()) local.set(username, { ...target, mfa: false });
+  else await cognito().send(new AdminSetUserMFAPreferenceCommand({ UserPoolId: pool(), Username: username, SoftwareTokenMfaSettings: { Enabled: false, PreferredMfa: false } }));
+  return { message: `Turned off two-step sign-in for ${target.email}. They sign in with just their password, then set it up again.` };
 }
 
 export async function removeAdmin(username, me) {

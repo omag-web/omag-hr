@@ -82,3 +82,40 @@ test('mock model end to end', async () => {
   assert.equal(texts.join(''), r.text);
   delete process.env.MODEL_MODE;
 });
+
+test('switches to the backup model when the main model is unavailable', async () => {
+  const calls = [];
+  const events = [];
+  const turn = async ({ modelId, onText }) => {
+    calls.push(modelId);
+    if (modelId === 'main') { onText('partial'); throw Object.assign(new Error('Too many requests'), { name: 'ThrottlingException' }); }
+    onText('Backup answer.');
+    return { stopReason: 'end_turn', usage: {}, content: [{ text: 'Backup answer.' }] };
+  };
+  const r = await runAgent({ history: [{ role: 'user', text: 'hi' }], library: lib, turn, modelId: 'main', fallbackModelId: 'backup', emit: (e) => events.push(e) });
+  assert.deepEqual(calls, ['main', 'backup']);
+  assert.equal(r.text, 'Backup answer.');
+  assert.equal(r.model, 'backup');
+  assert.ok(events.some((e) => e.type === 'reset'), 'half-written text from the failed model is cleared');
+});
+
+test('does not fall back for ordinary errors or without a backup model', async () => {
+  const bad = async () => { throw Object.assign(new Error('bad input'), { name: 'ValidationException' }); };
+  await assert.rejects(runAgent({ history: [{ role: 'user', text: 'hi' }], library: lib, turn: bad, modelId: 'main', fallbackModelId: 'backup' }), /bad input/);
+  const busy = async () => { throw Object.assign(new Error('busy'), { name: 'ThrottlingException' }); };
+  await assert.rejects(runAgent({ history: [{ role: 'user', text: 'hi' }], library: lib, turn: busy, modelId: 'main', fallbackModelId: '' }), /busy/);
+});
+
+test('tells the model to answer once the time budget is used up', async () => {
+  let t = 0;
+  const seen = [];
+  const turn = async ({ messages, tools, onText }) => {
+    seen.push(messages.at(-1));
+    if (seen.length === 1) return { stopReason: 'tool_use', usage: {}, content: [{ toolUse: { toolUseId: 'a', name: 'search_law', input: { query: 'nepotism' } } }] };
+    onText('Answer from what I read.');
+    return { stopReason: 'end_turn', usage: {}, content: [{ text: 'Answer from what I read.' }] };
+  };
+  const r = await runAgent({ history: [{ role: 'user', text: 'nepotism?' }], library: lib, turn, timeBudgetMs: 500, now: () => (t += 800) });
+  assert.equal(r.text, 'Answer from what I read.');
+  assert.ok(seen[1].content.some((b) => /Time is almost up/.test(b.text || '')));
+});
