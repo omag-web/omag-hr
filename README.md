@@ -25,7 +25,7 @@
 2. The Lambda gives OpenAI GPT-5.6 Terra (through Amazon Bedrock) Pip's system prompt (`backend/src/prompt.mjs`) and two tools: `search_law`, a keyword search over the library, and `get_sections`, which reads full text.
 3. GPT researches, then writes an answer that cites sections as `[[11-12-106]]`. The answer streams back word by word.
 4. The backend keeps only citations to sections GPT actually read. The page turns them into chips that open the section text (`GET /source`).
-5. OMAG documents uploaded in the admin panel are split into sections and searched alongside the statutes; Pip cites them as "OMAG". The editable part of Pip's instructions and the site settings live in DynamoDB.
+5. OMAG documents uploaded in the admin panel, and web pages added there (re-read daily), are split into sections and searched alongside the statutes; Pip cites them as "OMAG". The editable part of Pip's instructions and the site settings live in DynamoDB.
 6. Each answered question is logged to DynamoDB with its citations and token use. Thumbs up/down (`/feedback`) and "Talk to OMAG" (`/contact`, emailed via SNS) are stored with it.
 
 No accounts: conversation history lives in the member's browser. IP addresses are hashed and used only for the daily limits.
@@ -35,7 +35,7 @@ No accounts: conversation history lives in the member's browser. IP addresses ar
 ```bash
 cd backend
 npm install
-npm test                 # 32 tests, no AWS needed
+npm test                 # 36 tests, no AWS needed
 npm run dev:mock         # http://localhost:8787 with a scripted stand-in model
                          # admin panel at http://localhost:8787/admin/ (no sign-in locally)
 ```

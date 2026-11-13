@@ -1,11 +1,16 @@
-// OMAG guidance documents: upload → extract text → split into citable sections.
+// OMAG resources Pip can cite: uploaded documents and web pages.
+// Upload or fetch → extract text → split into citable sections.
 //
-//   pk DOC   sk <docId>   { title, filename, contentType, size, status, enabled, sections, chars, error, uploadedAt, uploadedBy }
+//   pk DOC   sk <docId>   files:    { title, filename, contentType, size, key, status, enabled, sections, chars, error, uploadedAt, uploadedBy }
+//                         websites: { kind: 'web', url, title, status, enabled, sections, chars, contentHash, lastCheckedAt, changedAt, lastError, ... }
 //   files:   docs/<docId>/original.<ext>   docs/<docId>/sections.json
+//
+// Websites are re-read daily (refreshWebsites). If a page can't be reached, Pip keeps the last good copy.
 
-import { randomBytes } from 'node:crypto';
+import { randomBytes, createHash } from 'node:crypto';
 import { kv, blobs } from './storage.mjs';
 import { bumpVersion } from './config.mjs';
+import { fetchPublic, normalizeUrl, htmlToText, pageTitle } from './web.mjs';
 
 const TYPES = {
   pdf: 'application/pdf',
@@ -78,7 +83,7 @@ export async function updateDoc(id, { enabled, title }) {
     // Rebuild citations with the new title.
     const buf = await blobs.get(`docs/${id}/sections.json`);
     if (buf) {
-      const secs = JSON.parse(buf.toString('utf8')).map((s, i, all) => ({ ...s, ...labels(attrs.title, i, all.length) }));
+      const secs = JSON.parse(buf.toString('utf8')).map((s, i, all) => ({ ...s, ...labels(attrs.title, i, all.length, s.url) }));
       await blobs.put(`docs/${id}/sections.json`, JSON.stringify(secs), 'application/json');
     }
   }
@@ -88,9 +93,88 @@ export async function updateDoc(id, { enabled, title }) {
 export async function deleteDoc(id) {
   const doc = await kv.get('DOC', id);
   if (!doc) return;
-  await Promise.all([blobs.del(doc.key), blobs.del(`docs/${id}/sections.json`)]);
+  await Promise.all([doc.key ? blobs.del(doc.key) : null, blobs.del(`docs/${id}/sections.json`)]);
   await kv.del('DOC', id);
   await bumpVersion('docs');
+}
+
+/* ---------- websites ---------- */
+const hostOf = (url) => new URL(url).hostname.replace(/^www\./, '');
+
+/** Add a web page. Reads it right away, so a bad address is reported immediately. */
+export async function addWebsite({ url, title }, by) {
+  url = normalizeUrl(url);
+  if ((await listDocs()).some((d) => d.url === url)) throw err('That page is already in the list.');
+  const id = `${slug(title || hostOf(url))}-${randomBytes(2).toString('hex')}`;
+  await kv.put({
+    pk: 'DOC', sk: id, kind: 'web', url,
+    title: String(title || '').trim().slice(0, 120),
+    status: 'processing', enabled: false, uploadedAt: new Date().toISOString(), uploadedBy: by
+  });
+  try {
+    return { id, ...(await fetchWebsite(id)) };
+  } catch (e) {
+    // Don't keep a website that never worked.
+    await kv.del('DOC', id);
+    throw e;
+  }
+}
+
+/** Read a web page again. Only rebuilds sections when the page's text changed. */
+export async function fetchWebsite(id) {
+  const doc = await kv.get('DOC', id);
+  if (!doc || doc.kind !== 'web') throw err('Website not found.', 404);
+  const now = new Date().toISOString();
+  try {
+    const page = await fetchPublic(doc.url);
+    let text, title = doc.title;
+    const isPdf = page.contentType.includes('pdf') || (!page.contentType && /\.pdf$/i.test(page.url));
+    if (isPdf) {
+      text = await extractText(page.body, 'pdf');
+    } else if (!page.contentType || /html|xml/.test(page.contentType)) {
+      const html = page.body.toString('utf8');
+      text = htmlToText(html);
+      if (!title) title = pageTitle(html);
+    } else if (page.contentType.startsWith('text/')) {
+      text = page.body.toString('utf8');
+    } else {
+      throw err('That address isn’t a web page or a PDF.');
+    }
+    if (!title) title = hostOf(page.url);
+    if (String(text).replace(/\s/g, '').length < 40) {
+      throw err('No readable text found on that page. Some sites only show their content with JavaScript; try a different page on the site, or save the page as a PDF and upload that.');
+    }
+    const hash = createHash('sha256').update(title + '\n' + text).digest('hex').slice(0, 32);
+    if (doc.status === 'ready' && doc.contentHash === hash) {
+      await kv.patch('DOC', id, { lastCheckedAt: now, lastError: null });
+      return { changed: false, sections: doc.sections };
+    }
+    const sections = toSections(text, { id, title, url: page.url });
+    await blobs.put(`docs/${id}/sections.json`, JSON.stringify(sections), 'application/json');
+    await kv.patch('DOC', id, {
+      status: 'ready', enabled: doc.status === 'ready' ? doc.enabled : true, title, finalUrl: page.url,
+      sections: sections.length, chars: text.length, contentHash: hash,
+      lastCheckedAt: now, changedAt: now, lastError: null, error: null
+    });
+    await bumpVersion('docs');
+    return { changed: true, sections: sections.length };
+  } catch (e) {
+    const message = e.status ? e.message : 'Couldn’t read that page.';
+    if (!e.status) console.error('fetchWebsite failed', id, e);
+    if (doc.status === 'ready') await kv.patch('DOC', id, { lastCheckedAt: now, lastError: message });
+    else await kv.patch('DOC', id, { status: 'error', error: message, lastCheckedAt: now });
+    throw err(message);
+  }
+}
+
+/** Daily: re-read every website. One failing site doesn't stop the others. */
+export async function refreshWebsites() {
+  const sites = (await listDocs()).filter((d) => d.kind === 'web');
+  const results = [];
+  for (const d of sites) {
+    try { results.push({ id: d.id, ...(await fetchWebsite(d.id)) }); } catch (e) { results.push({ id: d.id, error: e.message }); }
+  }
+  return results;
 }
 
 /** Sections from every enabled document, for the library. */
@@ -123,15 +207,22 @@ export async function extractText(buf, kind) {
 /* ---------- splitting into sections ---------- */
 const TARGET = 1600;
 
-function labels(title, i, n) {
-  return { cite: n > 1 ? `OMAG: ${title} (part ${i + 1})` : `OMAG: ${title}`, source: `OMAG guidance: ${title}` };
+function labels(title, i, n, url) {
+  const part = n > 1 ? ` (part ${i + 1})` : '';
+  if (url) {
+    // OMAG's own pages are cited as OMAG; other sites by page title, with the site named in the source line.
+    const host = hostOf(url);
+    const omag = /(^|\.)omag\.org$/.test(host);
+    return { cite: omag ? `OMAG: ${title}${part}` : `${title}${part}`, source: omag ? `OMAG website: ${title}` : `Website (${host}): ${title}`, url };
+  }
+  return { cite: `OMAG: ${title}${part}`, source: `OMAG guidance: ${title}` };
 }
 
 const isHeading = (p) =>
   p.length <= 90 && !/[.,;:]$/.test(p) && /[A-Za-z]/.test(p) &&
   (/^[A-Z0-9][A-Z0-9 &/,'()\-–—:.]+$/.test(p) || /^(\d+(\.\d+)*\.?|[IVX]+\.|Section\s+\d+)\s+\S/.test(p) || /^([A-Z][a-z’']*\s?){1,8}$/.test(p));
 
-export function toSections(text, { id, title }) {
+export function toSections(text, { id, title, url }) {
   const paras = String(text)
     .replace(/\r/g, '')
     .replace(/[ \t]+\n/g, '\n')
@@ -158,6 +249,6 @@ export function toSections(text, { id, title }) {
     heading: c.heading ? `${c.heading}${c.cont ? ' (continued)' : ''}` : title,
     jurisdiction: 'OMAG',
     text: c.parts.join('\n\n'),
-    ...labels(title, i, chunks.length)
+    ...labels(title, i, chunks.length, url)
   }));
 }

@@ -126,6 +126,12 @@ details summary{cursor:pointer;font-weight:600;font-size:14px}
 /* drop zone */
 .drop{border:2px dashed var(--line-2);border-radius:12px;padding:22px;text-align:center;color:var(--muted);font-size:14px;transition:.15s}
 .drop.over{border-color:var(--accent);background:var(--accent-bg);color:var(--accent-dk)}
+.add-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+.add-web{border:1px solid var(--line);border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+.add-web h3{margin:0;font-size:15px}
+.url{display:block;max-width:min(520px,100%);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px;margin-top:2px}
+.warnbox{margin-top:6px;padding:6px 10px;border-radius:8px;background:var(--warn-bg);color:var(--warn);font-size:12.5px;line-height:1.45}
+@media (max-width:980px){.add-grid{grid-template-columns:1fr}}
 
 /* drawer / modal */
 .scrim{position:fixed;inset:0;background:rgba(14,30,48,.4);z-index:40}
@@ -294,15 +300,24 @@ details summary{cursor:pointer;font-weight:600;font-size:14px}
 
     <!-- Documents -->
     <section data-section="documents" hidden>
-      <div class="page-head"><div><h1>OMAG documents</h1><p>Upload OMAG guidance (memos, FAQs, sample policies, program guides). Pip searches the documents that are switched on and cites them as "OMAG". Statutes and regulations still take priority over guidance.</p></div></div>
+      <div class="page-head"><div><h1>OMAG documents &amp; websites</h1><p>Give Pip OMAG guidance to search and cite: upload memos, FAQs, sample policies or program guides, or add web pages. Pip uses the ones that are switched on. Statutes and regulations still take priority over guidance.</p></div></div>
       <div class="card" style="margin-bottom:16px">
-        <div class="drop" id="drop">
-          <p style="margin:0 0 10px"><strong>Drop a PDF, Word (.docx) or text file here</strong>, or</p>
-          <label class="btn" for="file-input" style="cursor:pointer">Choose a file</label>
-          <input type="file" id="file-input" accept=".pdf,.docx,.txt,.md" class="sr-only">
-          <p class="hint" style="margin:10px 0 0">Up to 15 MB. Scanned PDFs need OCR first (they're pictures of text).</p>
+        <div class="add-grid">
+          <div class="drop" id="drop">
+            <p style="margin:0 0 10px"><strong>Drop a PDF, Word (.docx) or text file here</strong>, or</p>
+            <label class="btn" for="file-input" style="cursor:pointer">Choose a file</label>
+            <input type="file" id="file-input" accept=".pdf,.docx,.txt,.md" class="sr-only">
+            <p class="hint" style="margin:10px 0 0">Up to 15 MB. Scanned PDFs need OCR first (they're pictures of text).</p>
+          </div>
+          <form class="add-web" id="web-form">
+            <h3>Add a web page</h3>
+            <div class="field"><label for="web-url">Address</label><input class="input" id="web-url" type="text" inputmode="url" placeholder="https://www.omag.org/…" autocomplete="off" required></div>
+            <div class="field"><label for="web-title">Title Pip cites it by <span class="hint">(optional; uses the page's own title)</span></label><input class="input" id="web-title" maxlength="120"></div>
+            <div class="row" style="justify-content:space-between"><span class="hint">Pip re-checks the page every day for changes.</span><button class="btn primary" type="submit" id="web-add">Add page</button></div>
+          </form>
         </div>
-        <div id="upload-status" class="hint" style="margin-top:10px" role="status"></div>
+        <div id="upload-status" class="hint" style="margin-top:12px" role="status"></div>
+        <p class="hint" style="margin:8px 0 0">One address adds one page, not the whole site; add each page you want Pip to use. Pages from omag.org are cited as "OMAG"; other sites are cited by the page title, with the site named in the source.</p>
       </div>
       <div class="card" style="padding:6px 6px 0"><div id="docs-table"></div></div>
     </section>
@@ -365,8 +380,24 @@ details summary{cursor:pointer;font-weight:600;font-size:14px}
 
     <!-- Library -->
     <section data-section="library" hidden>
-      <div class="page-head"><div><h1>Statute library</h1><p>The Oklahoma statutes and federal regulations Pip searches. A GitHub Action rebuilds it from official sources monthly, and Pip picks up the new version automatically within a day.</p></div><button class="btn" id="lib-refresh">Check for updates now</button></div>
+      <div class="page-head"><div><h1>Statute library</h1><p>The Oklahoma statutes and federal regulations Pip searches. GitHub rebuilds it from the official sources below on the 3rd of each month and whenever the source list changes; Pip picks up the new version automatically within a day.</p></div><button class="btn" id="lib-refresh">Check for updates now</button></div>
       <div class="grid g4" id="lib-stats"></div>
+      <div class="card" style="margin-top:16px">
+        <div class="row" style="justify-content:space-between;align-items:flex-start">
+          <div><h2>Where the library comes from</h2><p class="sub" style="margin-bottom:0">Every address Pip's statute library is built from, and how many sections each one gives Pip today.</p></div>
+          <div class="row"><button class="btn" id="src-check">Check links</button><a class="btn" id="src-edit" target="_blank" rel="noopener" href="#">Edit sources on GitHub ↗</a></div>
+        </div>
+        <div id="src-table" style="margin-top:12px"></div>
+        <details style="margin-top:12px">
+          <summary>How to change an address or add a law</summary>
+          <ol class="hint" style="font-size:13.5px;line-height:1.7;margin:8px 0 0;padding-left:20px">
+            <li>Click <strong>Edit sources on GitHub</strong> (sign in to GitHub if asked).</li>
+            <li>Change the <code>"url"</code> for an Oklahoma title, or copy an entry to add one. Federal parts are listed by <code>"title"</code> and <code>"part"</code> (for example 29 and 825); their address is built automatically.</li>
+            <li>Click <strong>Commit changes…</strong>, then <strong>Commit changes</strong>. GitHub rebuilds the library, which takes about 5 minutes (<a id="src-runs" target="_blank" rel="noopener" href="#">watch it here ↗</a>). If anything is wrong, the build stops and Pip keeps the library it has.</li>
+            <li>Come back here and click <strong>Check for updates now</strong>.</li>
+          </ol>
+        </details>
+      </div>
       <div class="card" style="margin-top:16px">
         <h2>Search the library</h2>
         <p class="sub">See what Pip finds for a set of words, the same way it searches when answering.</p>
@@ -374,7 +405,7 @@ details summary{cursor:pointer;font-weight:600;font-size:14px}
           <label for="lib-q" class="sr-only">Search</label>
           <input class="input" id="lib-q" placeholder="e.g. executive session personnel">
           <label for="lib-j" class="sr-only">Source</label>
-          <select class="select" id="lib-j" style="width:auto"><option value="">Everything</option><option value="OK">Oklahoma statutes</option><option value="US">Federal regulations</option><option value="OMAG">OMAG documents</option></select>
+          <select class="select" id="lib-j" style="width:auto"><option value="">Everything</option><option value="OK">Oklahoma statutes</option><option value="US">Federal regulations</option><option value="OMAG">OMAG documents &amp; websites</option></select>
           <button class="btn primary" type="submit">Search</button>
         </form>
         <div id="lib-results" style="margin-top:12px"></div>
@@ -724,17 +755,40 @@ $('#pv-form-ask').addEventListener('submit', async (e) => {
 
 /* ================= DOCUMENTS ================= */
 let docs = [];
+const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return u; } };
+function docMeta(d) {
+  if (d.kind === 'web') {
+    const u = d.finalUrl || d.url;
+    return `<a class="url" href="${esc(u)}" target="_blank" rel="noopener" title="${esc(u)}">${esc(u.replace(/^https?:\/\/(www\.)?/, ''))}</a>
+      <div class="hint">Web page · ${d.lastCheckedAt ? `checked ${fmtDate(d.lastCheckedAt)}` : 'not checked yet'}${d.changedAt ? ` · last changed ${fmtDate(d.changedAt)}` : ''}</div>
+      ${d.lastError ? `<div class="warnbox">The last check failed: ${esc(d.lastError)} Pip is still using the copy from ${fmtDate(d.changedAt)}.</div>` : ''}`;
+  }
+  return `<div class="hint">${esc(d.filename)} · ${(d.size / 1024).toFixed(0)} KB · ${fmtDate(d.uploadedAt)}</div>`;
+}
 function renderDocs() {
-  if (!docs.length) { $('#docs-table').innerHTML = '<div class="empty">No documents yet. Upload OMAG guidance above and Pip will start citing it.</div>'; return; }
-  $('#docs-table').innerHTML = `<table><thead><tr><th>Document</th><th>Status</th><th>Sections</th><th>Used by Pip</th><th></th></tr></thead><tbody>${docs.map((d) => `
+  if (!docs.length) { $('#docs-table').innerHTML = '<div class="empty">Nothing yet. Upload an OMAG document or add a web page above, and Pip will start citing it.</div>'; return; }
+  $('#docs-table').innerHTML = `<table><thead><tr><th>Document or page</th><th>Status</th><th>Sections</th><th>Used by Pip</th><th></th></tr></thead><tbody>${docs.map((d) => `
     <tr>
-      <td><strong>${esc(d.title)}</strong><div class="hint">${esc(d.filename)} · ${(d.size / 1024).toFixed(0)} KB · ${fmtDate(d.uploadedAt)}</div>${d.error ? `<div class="err" style="margin-top:4px">${esc(d.error)}</div>` : ''}</td>
-      <td>${{ ready: '<span class="pill ok">Ready</span>', error: '<span class="pill bad">Problem</span>', uploading: '<span class="pill warn">Processing</span>' }[d.status] || esc(d.status)}</td>
+      <td><strong>${esc(d.title || host(d.url))}</strong>${docMeta(d)}${d.error ? `<div class="err" style="margin-top:4px">${esc(d.error)}</div>` : ''}</td>
+      <td>${{ ready: '<span class="pill ok">Ready</span>', error: '<span class="pill bad">Problem</span>', uploading: '<span class="pill warn">Processing</span>', processing: '<span class="pill warn">Reading</span>' }[d.status] || esc(d.status)}</td>
       <td>${d.sections ?? '—'}</td>
       <td>${d.status === 'ready' ? `<label class="row" style="gap:6px"><input type="checkbox" data-toggle="${esc(d.id)}" ${d.enabled ? 'checked' : ''}> ${d.enabled ? 'On' : 'Off'}</label>` : '—'}</td>
-      <td style="text-align:right;white-space:nowrap">${d.status === 'ready' ? `<button class="btn sm" data-view="${esc(d.id)}">View</button> ` : ''}<button class="btn sm" data-rename="${esc(d.id)}">Rename</button> <button class="btn sm danger" data-del="${esc(d.id)}">Delete</button></td>
+      <td style="text-align:right;white-space:nowrap">${d.status === 'ready' ? `<button class="btn sm" data-view="${esc(d.id)}">View</button> ` : ''}${d.kind === 'web' ? `<button class="btn sm" data-recheck="${esc(d.id)}">Re-check</button> ` : ''}<button class="btn sm" data-rename="${esc(d.id)}">Rename</button> <button class="btn sm danger" data-del="${esc(d.id)}">Delete</button></td>
     </tr>`).join('')}</tbody></table>`;
 }
+$('#web-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = $('#web-add'); const status = $('#upload-status');
+  const url = $('#web-url').value.trim(); if (!url) return;
+  btn.disabled = true; status.textContent = `Reading ${url}…`;
+  try {
+    const r = await api('POST', '/admin/docs/web', { url, title: $('#web-title').value.trim() });
+    docs = r.docs; renderDocs();
+    const d = docs.find((x) => x.id === r.result.id);
+    status.textContent = `✓ ${d?.title || url} is ready: ${r.result.sections} section${r.result.sections === 1 ? '' : 's'}. Pip can cite it now.`;
+    $('#web-url').value = ''; $('#web-title').value = '';
+  } catch (err) { status.textContent = '✗ ' + err.message; } finally { btn.disabled = false; }
+});
 loaders.documents = async () => { docs = (await api('GET', '/admin/docs')).docs; renderDocs(); };
 async function uploadFile(file) {
   const status = $('#upload-status');
@@ -757,11 +811,18 @@ const drop = $('#drop');
 ['dragleave', 'drop'].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
 drop.addEventListener('drop', (e) => { const f = e.dataTransfer.files[0]; if (f) uploadFile(f); });
 $('#docs-table').addEventListener('click', async (e) => {
-  const t = e.target.closest('[data-del],[data-rename],[data-view]'); if (!t) return;
+  const t = e.target.closest('[data-del],[data-rename],[data-view],[data-recheck]'); if (!t) return;
   try {
+    if (t.dataset.recheck) {
+      t.disabled = true; t.textContent = 'Checking…';
+      const r = await api('POST', `/admin/docs/${t.dataset.recheck}/recheck`);
+      docs = r.docs; renderDocs();
+      toast(r.result.error ? `Couldn’t check it: ${r.result.error}` : r.result.changed ? `The page changed. Pip now has the new version (${r.result.sections} sections).` : 'No changes since the last check.');
+      return;
+    }
     if (t.dataset.del) {
       const d = docs.find((x) => x.id === t.dataset.del);
-      if (!confirm(`Delete "${d.title}"? Pip will stop citing it right away.`)) return;
+      if (!confirm(`Delete "${d.title || d.url}"? Pip will stop citing it right away.`)) return;
       docs = (await api('DELETE', `/admin/docs/${d.id}`)).docs; renderDocs(); toast('Deleted.');
     } else if (t.dataset.rename) {
       const d = docs.find((x) => x.id === t.dataset.rename);
@@ -770,7 +831,7 @@ $('#docs-table').addEventListener('click', async (e) => {
     } else if (t.dataset.view) {
       const d = docs.find((x) => x.id === t.dataset.view);
       const { sections } = await api('GET', `/admin/docs/${d.id}/sections`);
-      openDrawer(d.title, `<p class="hint">How Pip sees this document: ${sections.length} section${sections.length === 1 ? '' : 's'}. Pip searches these and cites them as shown.</p>` +
+      openDrawer(d.title, `${d.kind === 'web' ? `<p class="hint"><a href="${esc(d.finalUrl || d.url)}" target="_blank" rel="noopener">Open the page ↗</a></p>` : ''}<p class="hint">How Pip sees this ${d.kind === 'web' ? 'page' : 'document'}: ${sections.length} section${sections.length === 1 ? '' : 's'}. Pip searches these and cites them as shown.</p>` +
         (sections.length ? sections.map((s) => `<div class="card" style="margin-top:10px"><div class="row" style="justify-content:space-between"><strong>${esc(s.heading)}</strong><span class="cite omag">${esc(s.cite)}</span></div><p style="white-space:pre-wrap;font-size:13.5px;line-height:1.55;margin:8px 0 0">${esc(s.text)}</p></div>`).join('') : '<p class="hint">Switch the document on to see its sections.</p>'));
     }
   } catch (err) { fail(err); }
@@ -867,7 +928,40 @@ function renderLib(s) {
     ['Last update check', s.lastCheck ? fmtDate(s.lastCheck.at) : 'Not yet', s.lastCheck ? s.lastCheck.message : 'Runs daily']
   ].map(([l, v, h]) => `<div class="card stat"><div class="label">${l}</div><div class="value" style="font-size:22px">${esc(v)}</div><div class="hint">${esc(h)}</div></div>`).join('');
 }
-loaders.library = async () => renderLib(await api('GET', '/admin/library'));
+let srcChecks = {};
+function renderSources(r) {
+  $('#src-edit').href = r.editUrl; $('#src-runs').href = r.workflowUrl;
+  const row = (x) => {
+    const c = srcChecks[x.url];
+    const status = c ? (c.ok ? `<span class="pill ok">✓ ${esc(c.message)}</span>` : `<span class="pill bad">✗ Problem</span><div class="hint" style="margin-top:4px">${esc(c.message)}</div>`) : '';
+    return `<tr>
+      <td style="width:190px"><strong>${esc(x.label)}</strong><div class="hint">${esc(x.name)}</div></td>
+      <td>${x.why ? `<div style="font-size:13.5px;line-height:1.5">${esc(x.why)}</div>` : ''}<a class="url" href="${esc(x.url)}" target="_blank" rel="noopener" title="${esc(x.url)}">${esc(x.url.replace(/^https?:\/\//, ''))}</a>${x.include ? `<div class="hint mono" style="margin-top:2px" title="Which sections are kept (patterns matched against section numbers)">${esc(x.include)}</div>` : ''}</td>
+      <td style="width:90px;text-align:right"><strong>${x.sections.toLocaleString()}</strong><div class="hint">sections</div></td>
+      <td style="width:210px">${status}</td>
+    </tr>`;
+  };
+  const ok = r.sources.filter((x) => x.kind === 'oklahoma'), fed = r.sources.filter((x) => x.kind === 'federal');
+  $('#src-table').innerHTML = `<table><thead><tr><th colspan="4">Oklahoma Statutes · Oklahoma Legislature</th></tr></thead><tbody>${ok.map(row).join('')}</tbody>
+    <thead><tr><th colspan="4" style="padding-top:18px">Federal regulations · eCFR</th></tr></thead><tbody>${fed.map(row).join('')}</tbody></table>`;
+}
+let srcData = null;
+loaders.library = async () => {
+  const [status, sources] = await Promise.all([api('GET', '/admin/library'), api('GET', '/admin/library/sources').catch((e) => ({ error: e.message }))]);
+  renderLib(status);
+  if (sources.error) { $('#src-table').innerHTML = `<p class="err">${esc(sources.error)}</p>`; return; }
+  srcData = sources; renderSources(sources);
+};
+$('#src-check').addEventListener('click', async (e) => {
+  const btn = e.currentTarget; btn.disabled = true; btn.textContent = 'Checking…';
+  try {
+    const { results } = await api('POST', '/admin/library/check-sources');
+    srcChecks = Object.fromEntries(results.map((x) => [x.url, x]));
+    if (srcData) renderSources(srcData);
+    const bad = results.filter((x) => !x.ok).length;
+    toast(bad ? `${bad} address${bad === 1 ? '' : 'es'} need${bad === 1 ? 's' : ''} attention.` : `All ${results.length} addresses are working.`);
+  } catch (err) { fail(err); } finally { btn.disabled = false; btn.textContent = 'Check links'; }
+});
 $('#lib-refresh').addEventListener('click', async (e) => {
   e.target.disabled = true;
   try { const r = await api('POST', '/admin/library/refresh', {}); renderLib(r.status); toast(r.result.message); } catch (err) { fail(err); } finally { e.target.disabled = false; }
@@ -894,7 +988,7 @@ document.addEventListener('click', async (e) => {
     const r = await fetch(`${PUBLIC_API}/source?id=${encodeURIComponent(c.dataset.cite)}`);
     if (!r.ok) throw new Error('Couldn’t load that section.');
     const s = await r.json();
-    openDrawer(s.heading && !s.cite.endsWith(s.heading) ? `${s.cite} — ${s.heading}` : s.cite, `<p class="hint">${esc(s.source || '')}</p>${s.text.split(/\n{2,}/).map((p) => `<p style="line-height:1.6">${esc(p)}</p>`).join('')}${s.url ? `<p><a href="${esc(s.url)}" target="_blank" rel="noopener">Official source ↗</a></p>` : ''}`);
+    openDrawer(s.heading && !s.cite.endsWith(s.heading) ? `${s.cite} — ${s.heading}` : s.cite, `<p class="hint">${esc(s.source || '')}</p>${s.text.split(/\n{2,}/).map((p) => `<p style="line-height:1.6">${esc(p)}</p>`).join('')}${s.url ? `<p><a href="${esc(s.url)}" target="_blank" rel="noopener">${/^(OMAG website|Website)/.test(s.source || '') ? 'Open the web page ↗' : 'Official source ↗'}</a></p>` : ''}`);
   } catch (err) { toast(err.message); }
 });
 

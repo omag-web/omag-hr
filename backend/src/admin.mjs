@@ -2,8 +2,8 @@
 
 import { requireAdmin } from './auth.mjs';
 import { getConfig, getGuidanceState, saveDraft, discardDraft, publishDraft, restoreToDraft, saveSettings, MODELS, validateGuidance } from './config.mjs';
-import { listDocs, createUpload, processDoc, updateDoc, deleteDoc } from './docs.mjs';
-import { getLibrary, libraryStatus, refreshLibrary } from './library.mjs';
+import { listDocs, createUpload, processDoc, updateDoc, deleteDoc, addWebsite, fetchWebsite } from './docs.mjs';
+import { getLibrary, libraryStatus, refreshLibrary, librarySources, checkSources } from './library.mjs';
 import { listTurns, getConversation, listContacts, usageStats } from './store.mjs';
 import { analytics } from './analytics.mjs';
 
@@ -44,6 +44,12 @@ on('PUT', '/admin/settings', async ({ body, admin }) => ({ settings: await saveS
 /* documents */
 on('GET', '/admin/docs', async () => ({ docs: await listDocs() }));
 on('POST', '/admin/docs', async ({ body, admin }) => createUpload(body || {}, admin.email));
+on('POST', '/admin/docs/web', async ({ body, admin }) => { const result = await addWebsite(body || {}, admin.email); return { result, docs: await listDocs() }; });
+on('POST', '/admin/docs/:id/recheck', async ({ params }) => {
+  let result;
+  try { result = await fetchWebsite(params.id); } catch (e) { result = { error: e.message }; }
+  return { result, docs: await listDocs() };
+});
 on('POST', '/admin/docs/:id/process', async ({ params }) => processDoc(params.id));
 on('PUT', '/admin/docs/:id', async ({ params, body }) => { await updateDoc(params.id, body || {}); return { docs: await listDocs() }; });
 on('DELETE', '/admin/docs/:id', async ({ params }) => { await deleteDoc(params.id); return { docs: await listDocs() }; });
@@ -59,6 +65,8 @@ on('GET', '/admin/contacts', async () => ({ contacts: await listContacts({ limit
 
 /* library */
 on('GET', '/admin/library', async () => libraryStatus());
+on('GET', '/admin/library/sources', async () => librarySources());
+on('POST', '/admin/library/check-sources', async () => checkSources());
 on('POST', '/admin/library/refresh', async ({ body }) => ({ result: await refreshLibrary({ force: !!body?.force }), status: await libraryStatus() }));
 on('POST', '/admin/library/search', async ({ body }) => {
   const lib = await getLibrary();

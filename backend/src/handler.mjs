@@ -12,7 +12,7 @@
 //   /admin/*                     → instructions, documents, settings, conversations, library
 //   POST /admin/preview          → like /chat, but with the draft instructions
 // Scheduled
-//   { pipTask: "refresh-library" } from EventBridge → pull the latest statute library
+//   { pipTask: "refresh-library" } from EventBridge → pull the latest statute library and re-read OMAG websites
 //
 // CORS is handled by the Function URL configuration in template.yaml.
 
@@ -22,6 +22,7 @@ import { getConfig, publicSettings } from './config.mjs';
 import { kv } from './storage.mjs';
 import { requireAdmin, authConfig } from './auth.mjs';
 import { matchAdmin } from './admin.mjs';
+import { refreshWebsites } from './docs.mjs';
 import { checkRateLimit, logTurn, newTurnId, saveFeedback, saveContact } from './store.mjs';
 
 const ID = /^[A-Za-z0-9_-]{6,64}$/;
@@ -30,6 +31,8 @@ export const handler = awslambda.streamifyResponse(async (event, stream) => {
   if (event?.pipTask === 'refresh-library') {
     const result = await refreshLibrary();
     console.log('scheduled library refresh', result);
+    const sites = await refreshWebsites().catch((e) => { console.error('website refresh failed', e); return []; });
+    if (sites.length) console.log('scheduled website refresh', sites);
     stream.write(JSON.stringify(result));
     stream.end();
     return;

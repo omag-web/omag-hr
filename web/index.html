@@ -739,7 +739,7 @@ async function openCite(id) {
       s = await r.json(); sourceCache.set(id, s);
     }
     const paras = s.text.split(/\n{2,}/).map((p) => `<p>${esc(p)}</p>`).join('');
-    showPanel(s.source, s.heading && !s.cite.endsWith(s.heading) ? `${s.cite} — ${s.heading}` : s.cite, paras + `<div class="panel-source">${s.history ? `<div style="margin-bottom:8px">History: ${esc(s.history)}</div>` : ''}${s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">Official source ↗</a>` : ''}</div>`);
+    showPanel(s.source, s.heading && !s.cite.endsWith(s.heading) ? `${s.cite} — ${s.heading}` : s.cite, paras + `<div class="panel-source">${s.history ? `<div style="margin-bottom:8px">History: ${esc(s.history)}</div>` : ''}${s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">${/^(OMAG website|Website)/.test(s.source || '') ? 'Open the web page ↗' : 'Official source ↗'}</a>` : ''}</div>`);
   } catch {
     showPanel('Source', citeLabel(id), '<p>Couldn\'t load this section right now. Please try again.</p>');
   }
