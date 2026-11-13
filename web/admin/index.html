@@ -423,6 +423,12 @@ details summary{cursor:pointer;font-weight:600;font-size:14px}
           </div>
         </div>
       </div>
+      <div class="card" style="margin-top:16px">
+        <div class="row" style="justify-content:space-between"><h2>Privacy notice</h2><button class="btn sm" type="button" id="set-privacy-default">Use the default text</button></div>
+        <p class="sub">Members open it from the <strong>Privacy</strong> link under the message box. <code>{retention}</code> becomes how long conversations are kept (<span id="set-retention"></span>) and <code>{phone}</code> the OMAG phone above. Headings start with <code>## </code>, list items with <code>- </code>. Have OMAG Legal review it.</p>
+        <label for="set-privacy" class="sr-only">Privacy notice</label>
+        <textarea id="set-privacy" class="code" style="min-height:360px"></textarea>
+      </div>
     </section>
 
     <!-- Library -->
@@ -1182,9 +1188,13 @@ function starterRow(s = {}) {
     <button class="icon-btn" type="button" data-remove aria-label="Remove starter">✕</button>
   </div>`;
 }
+let privacyDefault = '';
+$('#set-privacy-default').addEventListener('click', () => { if (confirm('Replace the notice with the default text? (Click Save settings to keep it.)')) $('#set-privacy').value = privacyDefault; });
 loaders.settings = async () => {
   const r = await api('GET', '/admin/settings'); settings = r.settings;
   $('#set-welcome').value = settings.welcomeText; $('#set-disclaimer').value = settings.disclaimer; $('#set-phone').value = settings.contactPhone;
+  privacyDefault = r.privacyDefault; $('#set-privacy').value = settings.privacyNotice || r.privacyDefault;
+  $('#set-retention').textContent = r.retentionDays % 365 === 0 ? `${r.retentionDays / 365} year${r.retentionDays === 365 ? '' : 's'}` : `${r.retentionDays} days`;
   $('#set-ip').value = settings.dailyLimitPerIp; $('#set-global').value = settings.dailyLimitGlobal;
   $('#set-pin').value = settings.priceInputPerM || 0; $('#set-pout').value = settings.priceOutputPerM || 0;
   const models = { ...r.models }; if (!models[settings.modelId]) models[settings.modelId] = settings.modelId;
@@ -1197,7 +1207,7 @@ $('#set-save').addEventListener('click', async () => {
   try {
     const starters = $$('.starter').map((r) => ({ kicker: $('[data-k=kicker]', r).value, text: $('[data-k=text]', r).value, doc: $('[data-k=doc]', r).checked }));
     await api('PUT', '/admin/settings', {
-      welcomeText: $('#set-welcome').value, disclaimer: $('#set-disclaimer').value, contactPhone: $('#set-phone').value,
+      welcomeText: $('#set-welcome').value, disclaimer: $('#set-disclaimer').value, contactPhone: $('#set-phone').value, privacyNotice: $('#set-privacy').value,
       starters, dailyLimitPerIp: Number($('#set-ip').value), dailyLimitGlobal: Number($('#set-global').value), modelId: $('#set-model').value,
       priceInputPerM: Number($('#set-pin').value || 0), priceOutputPerM: Number($('#set-pout').value || 0)
     });

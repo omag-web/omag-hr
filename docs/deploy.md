@@ -155,7 +155,7 @@ Some things are built into the code and can't be changed in the panel: Pip ident
 - The server removes ID numbers, account numbers and birth dates again before anything reaches the AI or the logs. This also covers "Talk to OMAG" messages.
 - Pip never repeats personal details back and refers to people by role.
 - Names and medical details can't be detected reliably by pattern, so the page asks members to leave them out.
-- The member page doesn't say that conversations are logged. If OMAG publishes a privacy notice for its website or member tools, it should mention that Pip conversations are kept for review.
+- The **Privacy** link under the message box opens a plain-language notice: what's kept, how it's used, how long, and a button to clear conversations saved in that browser. Edit it under **Settings → Privacy notice**, where `{retention}` and `{phone}` fill in automatically. Have OMAG Legal review it.
 
 To keep conversations for less time, rerun `sam deploy --guided` and lower **RetentionDays**.
 

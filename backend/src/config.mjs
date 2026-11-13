@@ -18,6 +18,35 @@ export const MODELS = {
   'us.openai.gpt-5.6-luna': 'GPT-5.6 Luna (fastest, cheapest)'
 };
 
+/** The privacy notice members see. {retention} and {phone} are filled in when it's shown. */
+export const DEFAULT_PRIVACY_NOTICE = `## What Pip is
+Pip is an AI assistant that OMAG provides to its member municipalities. Its answers are general information, not legal advice.
+
+## What we keep
+- The questions you ask, Pip's answers, and any rating or comment you leave.
+- The form of government you choose and the municipality name you enter.
+- When you build a document: which document and when. Your answers to the document's questions are used to fill in the file and aren't kept.
+- To prevent abuse, a scrambled one-way code made from your internet address and browser. It can't be used to tell who you are.
+
+Pip doesn't ask for your name or use accounts.
+
+## How it's used
+- Your question goes to an AI model that runs inside OMAG's own Amazon Web Services account (Amazon Bedrock). It isn't sent to OpenAI or any other company, and it isn't used to train AI models.
+- Authorized OMAG staff review conversations to check the quality of Pip's answers and improve it.
+- If you use "Talk to OMAG", your note and the conversation are sent to OMAG staff so they can follow up.
+
+## How long we keep it
+Saved conversations are deleted automatically after {retention}.
+
+## Personal details
+Please don't include names, Social Security or other ID numbers, birth dates or medical details. Pip removes ID numbers, account numbers and birth dates automatically before your message is saved or sent to the AI.
+
+## On this device
+Your recent conversations are also stored in this browser so you can come back to them. You can clear them below; that doesn't delete the copies OMAG keeps.
+
+## Questions
+Call OMAG at {phone}.`;
+
 export function defaultSettings() {
   return {
     welcomeText: "I'm OMAG's AI assistant for municipal HR. Ask about Oklahoma statutes and federal employment law for your form of government, or have me draft a document from OMAG's templates using your town's details.",
@@ -27,6 +56,7 @@ export function defaultSettings() {
       { kicker: 'Discipline', text: 'Can the mayor suspend an employee unilaterally?' },
       { kicker: 'Create a document', text: 'Build our personnel policies handbook', doc: true }
     ],
+    privacyNotice: '',
     disclaimer: 'Answers are general information, not legal advice. For your specific situation, consult your municipal attorney or OMAG Legal Services.',
     contactPhone: '1-800-234-9461',
     dailyLimitPerIp: Number(process.env.DAILY_LIMIT_PER_IP || 60),
@@ -122,6 +152,10 @@ export async function saveSettings(input, by) {
   const str = (v, max) => String(v ?? '').trim().slice(0, max);
   if ('welcomeText' in input) s.welcomeText = str(input.welcomeText, 600);
   if ('disclaimer' in input) s.disclaimer = str(input.disclaimer, 400);
+  if ('privacyNotice' in input) {
+    const t = String(input.privacyNotice ?? '').trim();
+    s.privacyNotice = t === DEFAULT_PRIVACY_NOTICE.trim() ? '' : t.slice(0, 8000);   // '' = use the default
+  }
   if ('contactPhone' in input) s.contactPhone = str(input.contactPhone, 40);
   if ('starters' in input) {
     if (!Array.isArray(input.starters)) throw Object.assign(new Error('Starters must be a list.'), { status: 400 });
@@ -156,7 +190,11 @@ export async function saveSettings(input, by) {
 /** Public subset for the member-facing page. */
 export function publicSettings(settings) {
   const { welcomeText, starters, disclaimer, contactPhone } = settings;
-  return { welcomeText, starters, disclaimer, contactPhone };
+  return {
+    welcomeText, starters, disclaimer, contactPhone,
+    privacyNotice: settings.privacyNotice || DEFAULT_PRIVACY_NOTICE,
+    retentionDays: Number(process.env.RETENTION_DAYS || 730)
+  };
 }
 
 /* ---------- versions ---------- */
