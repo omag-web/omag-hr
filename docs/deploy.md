@@ -114,6 +114,24 @@ After this one-time setup, merging a pull request that changes `backend/` deploy
 
 From then on it runs by itself after every merge that touches `backend/`. It keeps the settings you chose with `sam deploy --guided` (it reads them from the stack), so it never resets emails or limits. To change one of those settings later, run `sam deploy --guided` from your PC as before, on the hotspot if needed. The automatic deploy keeps whatever you set.
 
+## 8. Load OMAG's document templates (one time)
+
+Members build OMAG's personnel policy, FMLA policy and acknowledgment receipt from OMAG's real Word files. The prepared files come as one template pack, `omag-templates.zip`. It's kept out of this public repository because it's OMAG's documents.
+
+1. Admin panel → **Document templates** → **Import a template pack** → choose `omag-templates.zip`.
+2. Open each template, read the questions and notes, and click **Test with sample answers** to download a test copy.
+3. Templates import switched on. To hold one back until it's reviewed, untick **Members can use it**.
+
+When OMAG revises a template, either edit the Word file (keep the `{{fields}}`) and click **Replace** next to that form of government, or rebuild the whole pack from OMAG's original files:
+
+```
+python3 knowledge/scripts/prepare-omag-templates.py <folder with OMAG's .docx files> omag-templates.zip
+```
+
+The script removes OMAG's instructions page, turns every blank into a field, moves the `[NOTE]`s into the notes, and stops with an error if a blank it expects has moved. Convert the FMLA `.doc` to `.docx` first (open it in Word → Save As → Word Document).
+
+Use **Download all (backup)** before big changes. It downloads every template, with its files and questions, as a pack you can import again.
+
 ## Day-to-day
 
 Most changes are made in the admin panel and take effect within a minute, with no redeploy:
@@ -127,6 +145,7 @@ Most changes are made in the admin panel and take effect within a minute, with n
 | Read "Talk to OMAG" messages | **Talk to OMAG** (also emailed to ContactEmail) |
 | Change the welcome text, starter questions, disclaimer, phone, model or daily limits | **Settings** |
 | Add, remove or re-invite admins | **Admins** |
+| Add or update a document members can build (personnel policy, FMLA policy…) | **Document templates**: upload a Word file with `{{fields}}`, write the questions, test it, switch it on. The page explains the field syntax. |
 | See or search the statute library, check that its source addresses still work, or change them | **Statute library**: **Check links**, then **Edit sources on GitHub** (steps are on the page) |
 
 Some things are built into the code and can't be changed in the panel: Pip identifies itself as an AI assistant, reads the actual sections before citing them, drops citations it didn't read, and never presents itself as legal counsel.

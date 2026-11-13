@@ -23,7 +23,9 @@
     "@aws-sdk/s3-request-presigner": "^3.1168.0",
     "@smithy/node-http-handler": "^4.14.2",
     "aws-jwt-verify": "^5.2.1",
+    "docxtemplater": "^3.71.1",
     "mammoth": "^1.13.0",
+    "pizzip": "^3.3.0",
     "unpdf": "^1.9.1"
   }
 }

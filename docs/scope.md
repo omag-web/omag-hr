@@ -93,7 +93,7 @@ Rejected alternatives: **Glean** (internal-employee search, ~100-seat minimum ar
 ## Phases
 
 1. ✅ **Live (November 2026).** **Statute Q&A with citations:** system prompt, statute library, retrieval, streaming chat UI, city picker, logging.
-2. **Document generation:** the four personnel templates + FMLA policy + acknowledgment receipt as fillable .docx.
+2. ✅ **Document generation (November 2026):** the four personnel policy versions, the FMLA policy and the acknowledgment receipt are filled from OMAG's real Word files. Members answer questions in the chat and download the .docx, and Pip offers the right document when asked. Templates are managed in the admin panel. Not yet: PDF output (members save as PDF from Word).
 3. **Admin panel and hardening:** ✅ admin panel (Cognito sign-in; editable instructions with draft, preview, publish and version history; OMAG document uploads Pip can cite; conversation review with 👎 filter; "Talk to OMAG" inbox; settings; daily automatic statute library refresh), ✅ evaluation script, ✅ budget alert. Still to do: WAF.
 
 ## Open decisions
@@ -104,3 +104,7 @@ Rejected alternatives: **Glean** (internal-employee search, ~100-seat minimum ar
 - [ ] Terms-of-use line telling users conversations are logged to improve the service
 - [ ] Domain (e.g. `ask.omag.org`) and whether to also embed it full-height on omag.org
 - [ ] Charter cities: no OMAG template; start from Council-Manager and flag sections to check against the charter?
+
+### Found while preparing the templates (for OMAG Legal)
+- The FMLA sample cites § 825.200(b)(4) for the "measured forward" 12-month period. Forward is (b)(3); (b)(4) is the rolling-backward method. Pip's generated text cites (b)(3).
+- The Aldermanic, Council-Manager and Strong-Mayor personnel policies say personnel records are available "only with the approval of the City Manager". Aldermanic and Strong-Mayor cities have no city manager. Pip asks the member who approves access instead.

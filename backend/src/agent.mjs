@@ -1,7 +1,7 @@
 // One chat turn: research with tools, then stream the answer.
 
 import { converseTurn } from './model.mjs';
-import { TOOL_SPECS, runTool } from './tools.mjs';
+import { TOOL_SPECS, OFFER_DOCUMENT_SPEC, runTool } from './tools.mjs';
 import { buildSystemPrompt, FORMS } from './prompt.mjs';
 
 const MAX_TOOL_ROUNDS = 6;
@@ -37,8 +37,10 @@ export function markerIds(text) {
  * emit(event) receives {type:'status'|'text', ...} as things happen.
  * Returns { text, citations, usage, toolCalls }.
  */
-export async function runAgent({ history, form, city, library, emit = () => {}, turn = converseTurn, guidance, modelId }) {
-  const system = buildSystemPrompt({ form: FORMS[form] ? form : undefined, city, guidance, omagDocs: library.omagTitles || [] });
+export async function runAgent({ history, form, city, library, emit = () => {}, turn = converseTurn, guidance, modelId, templates = [] }) {
+  const system = buildSystemPrompt({ form: FORMS[form] ? form : undefined, city, guidance, omagDocs: library.omagTitles || [], templates });
+  const tools = templates.length ? [...TOOL_SPECS, OFFER_DOCUMENT_SPEC] : TOOL_SPECS;
+  const offers = [];
   const messages = toConverseMessages(history);
   const seen = new Set();          // section ids the model has read this turn
   const usage = { inputTokens: 0, outputTokens: 0, cacheReadInputTokens: 0, cacheWriteInputTokens: 0 };
@@ -55,7 +57,7 @@ export async function runAgent({ history, form, city, library, emit = () => {}, 
       system,
       modelId,
       messages,
-      tools: TOOL_SPECS,
+      tools,
       onText: (d) => { turnText += d; emit({ type: 'text', text: d }); }
     });
     for (const k of Object.keys(usage)) usage[k] += res.usage?.[k] || 0;
@@ -75,7 +77,7 @@ export async function runAgent({ history, form, city, library, emit = () => {}, 
 
     const results = [];
     for (const { toolUse } of uses) {
-      const r = runTool(toolUse.name, toolUse.input, library);
+      const r = runTool(toolUse.name, toolUse.input, library, { templates, offers });
       r.ids.forEach((id) => seen.add(id));
       toolCalls.push({ name: toolUse.name, input: toolUse.input });
       emit({ type: 'status', text: r.status });
@@ -92,5 +94,7 @@ export async function runAgent({ history, form, city, library, emit = () => {}, 
     if (s && seen.has(s.id)) citations.push({ marker: raw, id: s.id, cite: s.cite, heading: s.heading });
     else unread.push(raw);
   }
-  return { text: finalText, citations, unread, usage, toolCalls };
+  // One button per document, last answers win.
+  const documents = [...new Map(offers.map((o) => [o.templateId, o])).values()];
+  return { text: finalText, citations, unread, usage, toolCalls, documents };
 }

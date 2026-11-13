@@ -8,6 +8,8 @@
 //   POST /chat                   → streams NDJSON events: status | text | reset | done | error
 //   POST /feedback               → thumbs up/down on an answer
 //   POST /contact                → "Talk to OMAG" message
+//   GET  /templates?form=town    → document templates available for that form of government
+//   POST /templates/fill         → builds a document: { templateId, form, values } → { filename, data (base64 .docx), blanks }
 // Admin (signed in; see admin.mjs)
 //   /admin/*                     → instructions, documents, settings, conversations, library
 //   POST /admin/preview          → like /chat, but with the draft instructions
@@ -23,9 +25,11 @@ import { kv } from './storage.mjs';
 import { requireAdmin, authConfig } from './auth.mjs';
 import { matchAdmin } from './admin.mjs';
 import { refreshWebsites } from './docs.mjs';
-import { checkRateLimit, logTurn, newTurnId, saveFeedback, saveContact } from './store.mjs';
+import { checkRateLimit, checkDocLimit, logTurn, logDocument, newTurnId, saveFeedback, saveContact } from './store.mjs';
+import { memberTemplates, fillTemplate } from './templates.mjs';
 
 const ID = /^[A-Za-z0-9_-]{6,64}$/;
+const FORM_KEYS = ['town', 'aldermanic', 'cm', 'strong', 'charter'];
 
 export const handler = awslambda.streamifyResponse(async (event, stream) => {
   if (event?.pipTask === 'refresh-library') {
@@ -44,13 +48,15 @@ export const handler = awslambda.streamifyResponse(async (event, stream) => {
     if (method === 'GET' && path === '/health') return json(stream, 200, await health());
     if (method === 'GET' && path === '/config') return json(stream, 200, publicSettings((await getConfig()).settings), { 'Cache-Control': 'public, max-age=60' });
     if (method === 'GET' && path === '/auth-config') return json(stream, 200, authConfig());
-    if (method === 'GET' && path === '/source') return source(stream, event.queryStringParameters?.id);
-    if (method === 'POST' && path === '/chat') return chat(stream, parse(event), ip);
-    if (method === 'POST' && path === '/feedback') return feedback(stream, parse(event));
-    if (method === 'POST' && path === '/contact') return contact(stream, parse(event), ip);
+    if (method === 'GET' && path === '/source') return await source(stream, event.queryStringParameters?.id);
+    if (method === 'POST' && path === '/chat') return await chat(stream, parse(event), ip);
+    if (method === 'POST' && path === '/feedback') return await feedback(stream, parse(event));
+    if (method === 'POST' && path === '/contact') return await contact(stream, parse(event), ip);
+    if (method === 'GET' && path === '/templates') return json(stream, 200, { templates: await memberTemplates(String(event.queryStringParameters?.form || 'town')) }, { 'Cache-Control': 'public, max-age=60' });
+    if (method === 'POST' && path === '/templates/fill') return await fillDoc(stream, parse(event), ip);
     if (path.startsWith('/admin/')) {
       const admin = await requireAdmin(event);
-      if (method === 'POST' && path === '/admin/preview') return chat(stream, parse(event), ip, { admin });
+      if (method === 'POST' && path === '/admin/preview') return await chat(stream, parse(event), ip, { admin });
       const route = matchAdmin(method, path);
       if (!route) return json(stream, 404, { error: 'Not found' });
       const body = method === 'GET' ? {} : parse(event);
@@ -124,9 +130,10 @@ async function chat(stream, body, ip, opts = {}) {
     emit({ type: 'status', text: 'Reading your question' });
     result = await runAgent({
       history: messages, form, city: city ? String(city).slice(0, 120) : undefined,
-      library: await getLibrary(), emit, guidance, modelId
+      library: await getLibrary(), emit, guidance, modelId,
+      templates: await memberTemplates(FORM_KEYS.includes(form) ? form : 'town').catch((e) => { console.error('templates unavailable', e); return []; })
     });
-    emit({ type: 'done', turnId, citations: result.citations, unread: result.unread });
+    emit({ type: 'done', turnId, citations: result.citations, unread: result.unread, documents: result.documents });
   } catch (e) {
     console.error('chat failed', e);
     error = e.name || 'Error';
@@ -155,6 +162,20 @@ async function feedback(stream, body) {
   if (!ID.test(String(conversationId || '')) || !/^TURN#/.test(String(turnId || '')) || !['up', 'down'].includes(rating)) return json(stream, 400, { error: 'Invalid feedback' });
   const ok = await saveFeedback({ conversationId, turnId, rating, note });
   return json(stream, ok ? 200 : 404, { ok });
+}
+
+async function fillDoc(stream, body, ip) {
+  const { templateId, form, values, municipality, city, browserId, conversationId } = body;
+  if (!/^[a-z0-9-]{3,64}$/.test(String(templateId || ''))) return json(stream, 400, { error: 'Choose a document.' });
+  if (values && (typeof values !== 'object' || JSON.stringify(values).length > 60000)) return json(stream, 400, { error: 'Too much text in the answers.' });
+  const limit = await checkDocLimit(ip);
+  if (!limit.ok) return json(stream, 429, { error: limit.reason });
+  const doc = await fillTemplate(templateId, { form, values: values || {}, municipality });
+  const t = await import('./templates.mjs').then((m) => m.getTemplate(templateId));
+  try {
+    await logDocument({ templateId, title: t.title, form, city: city || municipality, browserId, ip, blanks: doc.blanks.length, conversationId: ID.test(String(conversationId || '')) ? conversationId : undefined });
+  } catch (e) { console.error('doc log failed', e); }
+  return json(stream, 200, { filename: doc.filename, data: doc.data.toString('base64'), blanks: doc.blanks });
 }
 
 async function contact(stream, body, ip) {
