@@ -1,0 +1,52 @@
+name: Refresh statute library
+
+# Rebuilds backend/data/library.json from the Oklahoma Legislature and eCFR,
+# then commits it if anything changed. Runs when the source list or the
+# builder changes, monthly, and on demand (Actions tab → Run workflow).
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 9 3 * *'   # 3rd of each month, 09:17 UTC
+  push:
+    paths:
+      - 'knowledge/**'
+      - '.github/workflows/library.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: library-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install pdftotext
+        run: sudo apt-get update -q && sudo apt-get install -y -q poppler-utils
+
+      - name: Parser tests
+        run: node --test knowledge/scripts/parse.test.mjs
+
+      - name: Build library
+        run: node knowledge/scripts/build-library.mjs
+
+      - name: Commit if changed
+        run: |
+          if git diff --quiet -- backend/data/library.json && git ls-files --error-unmatch backend/data/library.json >/dev/null 2>&1; then
+            echo "Library unchanged."
+            exit 0
+          fi
+          git config user.name "pip-library-bot"
+          git config user.email "pip-library-bot@users.noreply.github.com"
+          git add backend/data/library.json
+          git commit -m "Refresh statute library ($(date -u +%Y-%m-%d))"
+          git push
