@@ -153,6 +153,12 @@ svg{flex:none}
 .privacy-quote{padding:10px 12px;border-radius:10px;background:#f4f7fa;border:1px solid var(--line-2);font-size:14px;white-space:pre-wrap;max-height:180px;overflow:auto}
 .privacy-quote mark{background:#fde7b0;border-radius:3px;padding:0 2px}
 .privacy-note{display:block;margin-top:2px}
+.link-btn{border:none;background:none;padding:0;font:inherit;color:var(--accent-dk);text-decoration:underline;cursor:pointer}
+.privacy-body h4{font-size:15px;margin:16px 0 6px;color:var(--navy)}
+.privacy-body h4:first-child{margin-top:0}
+.privacy-body p,.privacy-body li{font-size:14.5px;line-height:1.6}
+.privacy-body ul{padding-left:20px;margin:0 0 8px}
+.privacy-device{margin-top:16px;padding:12px 14px;border-radius:10px;background:#f4f7fa;border:1px solid var(--line-2);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:14px}
 .form-card{border:1px solid var(--line-2);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:14px;background:#fbfcfd}
 .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
 .field{display:flex;flex-direction:column;gap:6px}
@@ -350,7 +356,7 @@ svg{flex:none}
           </div>
         </div>
         <p class="disclaimer" id="disclaimer">Answers are general information, not legal advice. For your specific situation, consult your municipal attorney or OMAG Legal Services.</p>
-        <p class="disclaimer privacy-note">Please leave out names, ID numbers and medical details.</p>
+        <p class="disclaimer privacy-note">Please leave out names, ID numbers and medical details. <button type="button" class="link-btn" data-action="privacy">Privacy</button></p>
       </form>
     </div>
   </div>
@@ -462,7 +468,9 @@ const SITE = {
     { kicker: 'Create a document', text: 'Build our personnel policies handbook', doc: true }
   ],
   disclaimer: 'Answers are general information, not legal advice. For your specific situation, consult your municipal attorney or OMAG Legal Services.',
-  contactPhone: '1-800-234-9461'
+  contactPhone: '1-800-234-9461',
+  privacyNotice: '',
+  retentionDays: 730
 };
 async function loadSiteSettings() {
   if (!API) return;
@@ -1105,6 +1113,29 @@ document.addEventListener('click', (e) => {
   ask(b.dataset.privacy === 'asis' ? q : PRIVACY.remove(q, finds));
 });
 
+/* ============ PRIVACY NOTICE ============ */
+function retentionText(days) {
+  days = Number(days) || 730;
+  if (days % 365 === 0) return days === 365 ? '1 year' : `${days / 365} years`;
+  if (days % 30 === 0 && days < 365) return `${days / 30} months`;
+  return `${days} days`;
+}
+async function openPrivacy() {
+  if (!SITE.privacyNotice && API) await loadSiteSettings();
+  const saved = LS.get('pip.history', []).length;
+  const text = (SITE.privacyNotice || `## Privacy\nThe privacy notice couldn't load. Please call OMAG at {phone}.`)
+    .replace(/\{retention\}/g, retentionText(SITE.retentionDays)).replace(/\{phone\}/g, SITE.contactPhone);
+  openModal('Privacy', `<div class="privacy-body">${md(text, new Map())}</div>
+    <div class="privacy-device"><span>${saved ? `${saved} conversation${saved === 1 ? '' : 's'} saved in this browser.` : 'No conversations saved in this browser.'}</span>${saved || LS.get('pip.muni') ? '<button type="button" class="btn" data-action="clear-device">Clear my conversations on this device</button>' : ''}</div>`);
+}
+function clearDevice() {
+  if (!confirm('Delete your saved conversations and municipality name from this browser? This can’t be undone.')) return;
+  try { localStorage.removeItem('pip.history'); localStorage.removeItem('pip.muni'); } catch {}
+  state.muni = F().unit + ' of Example'; state.muniSet = false;
+  closeModal(); renderRecent(); renderWelcome();
+  toast('Cleared from this browser.');
+}
+
 /* ============ EVENTS ============ */
 const ta = $('#prompt');
 function updateSend(){ $('#send').disabled = state.busy || !ta.value.trim(); }
@@ -1132,6 +1163,8 @@ document.addEventListener('click', e=>{
     case 'menu': $('#sidebar').classList.toggle('open'); break;
     case 'gov-focus': { closeSidebar(); const sel=$('#gov-select'), box=$('#gov-control'); box.classList.remove('flash'); void box.offsetWidth; box.classList.add('flash'); sel.focus(); try{ sel.showPicker && sel.showPicker(); }catch(_){} break; }
     case 'contact': openContact(); break;
+    case 'privacy': openPrivacy(); break;
+    case 'clear-device': clearDevice(); break;
     case 'send-omag': sendContact(t); break;
     case 'templates': openTemplates(); break;
     case 'close-modal': closeModal(); break;

@@ -1,7 +1,7 @@
 // /admin/* routes. Every route requires a signed-in admin (see auth.mjs).
 
 import { requireAdmin } from './auth.mjs';
-import { getConfig, getGuidanceState, saveDraft, discardDraft, publishDraft, restoreToDraft, saveSettings, MODELS, validateGuidance } from './config.mjs';
+import { getConfig, getGuidanceState, saveDraft, discardDraft, publishDraft, restoreToDraft, saveSettings, MODELS, validateGuidance, DEFAULT_PRIVACY_NOTICE } from './config.mjs';
 import { listDocs, createUpload, processDoc, updateDoc, deleteDoc, addWebsite, fetchWebsite } from './docs.mjs';
 import { getLibrary, libraryStatus, refreshLibrary, librarySources, checkSources } from './library.mjs';
 import { listTurns, getConversation, listContacts, usageStats } from './store.mjs';
@@ -74,8 +74,9 @@ on('POST', '/admin/guidance/publish', async ({ body, admin }) => { await publish
 on('POST', '/admin/guidance/restore', async ({ body, admin }) => { await restoreToDraft(String(body.id || ''), admin.email); return getGuidanceState(); });
 
 /* settings */
-on('GET', '/admin/settings', async () => ({ settings: (await getConfig({ fresh: true })).settings, models: MODELS }));
-on('PUT', '/admin/settings', async ({ body, admin }) => ({ settings: await saveSettings(body || {}, admin.email), models: MODELS }));
+const settingsExtra = { models: MODELS, privacyDefault: DEFAULT_PRIVACY_NOTICE, retentionDays: Number(process.env.RETENTION_DAYS || 730) };
+on('GET', '/admin/settings', async () => ({ settings: (await getConfig({ fresh: true })).settings, ...settingsExtra }));
+on('PUT', '/admin/settings', async ({ body, admin }) => ({ settings: await saveSettings(body || {}, admin.email), ...settingsExtra }));
 
 /* documents */
 on('GET', '/admin/docs', async () => ({ docs: await listDocs() }));
