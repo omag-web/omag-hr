@@ -317,7 +317,7 @@ details summary{cursor:pointer;font-weight:600;font-size:14px}
           </form>
         </div>
         <div id="upload-status" class="hint" style="margin-top:12px" role="status"></div>
-        <p class="hint" style="margin:8px 0 0">One address adds one page, not the whole site; add each page you want Pip to use. Pages from omag.org are cited as "OMAG"; other sites are cited by the page title, with the site named in the source.</p>
+        <p class="hint" style="margin:8px 0 0">One address adds one page, not the whole site; add each page you want Pip to use. Files are cited as "OMAG: title" unless you name another publisher when uploading (for example, OML for the OML Handbook). Pages from omag.org are cited as "OMAG"; other sites by the page title, with the site named in the source.</p>
       </div>
       <div class="card" style="padding:6px 6px 0"><div id="docs-table"></div></div>
     </section>
@@ -763,7 +763,7 @@ function docMeta(d) {
       <div class="hint">Web page · ${d.lastCheckedAt ? `checked ${fmtDate(d.lastCheckedAt)}` : 'not checked yet'}${d.changedAt ? ` · last changed ${fmtDate(d.changedAt)}` : ''}</div>
       ${d.lastError ? `<div class="warnbox">The last check failed: ${esc(d.lastError)} Pip is still using the copy from ${fmtDate(d.changedAt)}.</div>` : ''}`;
   }
-  return `<div class="hint">${esc(d.filename)} · ${(d.size / 1024).toFixed(0)} KB · ${fmtDate(d.uploadedAt)}</div>`;
+  return `<div class="hint">${d.publisher && d.publisher !== 'OMAG' ? `Published by <strong>${esc(d.publisher)}</strong> · ` : ''}${esc(d.filename)} · ${(d.size / 1024).toFixed(0)} KB · ${fmtDate(d.uploadedAt)}</div>`;
 }
 function renderDocs() {
   if (!docs.length) { $('#docs-table').innerHTML = '<div class="empty">Nothing yet. Upload an OMAG document or add a web page above, and Pip will start citing it.</div>'; return; }
@@ -773,7 +773,7 @@ function renderDocs() {
       <td>${{ ready: '<span class="pill ok">Ready</span>', error: '<span class="pill bad">Problem</span>', uploading: '<span class="pill warn">Processing</span>', processing: '<span class="pill warn">Reading</span>' }[d.status] || esc(d.status)}</td>
       <td>${d.sections ?? '—'}</td>
       <td>${d.status === 'ready' ? `<label class="row" style="gap:6px"><input type="checkbox" data-toggle="${esc(d.id)}" ${d.enabled ? 'checked' : ''}> ${d.enabled ? 'On' : 'Off'}</label>` : '—'}</td>
-      <td style="text-align:right;white-space:nowrap">${d.status === 'ready' ? `<button class="btn sm" data-view="${esc(d.id)}">View</button> ` : ''}${d.kind === 'web' ? `<button class="btn sm" data-recheck="${esc(d.id)}">Re-check</button> ` : ''}<button class="btn sm" data-rename="${esc(d.id)}">Rename</button> <button class="btn sm danger" data-del="${esc(d.id)}">Delete</button></td>
+      <td style="text-align:right;white-space:nowrap">${d.status === 'ready' ? `<button class="btn sm" data-view="${esc(d.id)}">View</button> ` : ''}${d.kind === 'web' ? `<button class="btn sm" data-recheck="${esc(d.id)}">Re-check</button> ` : ''}<button class="btn sm" data-rename="${esc(d.id)}">${d.kind === 'web' ? 'Rename' : 'Edit name'}</button> <button class="btn sm danger" data-del="${esc(d.id)}">Delete</button></td>
     </tr>`).join('')}</tbody></table>`;
 }
 $('#web-form').addEventListener('submit', async (e) => {
@@ -794,9 +794,11 @@ async function uploadFile(file) {
   const status = $('#upload-status');
   const title = prompt('Title Pip should use when citing this document:', file.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' '));
   if (title === null) return;
+  const publisher = prompt('Who published it? Pip cites it as "<publisher>: <title>". Leave as OMAG for OMAG\'s own documents.', 'OMAG');
+  if (publisher === null) return;
   try {
     status.textContent = `Uploading ${file.name}…`;
-    const up = await api('POST', '/admin/docs', { filename: file.name, size: file.size, title: title.trim() || file.name });
+    const up = await api('POST', '/admin/docs', { filename: file.name, size: file.size, title: title.trim() || file.name, publisher: publisher.trim() || 'OMAG' });
     const put = await fetch(up.uploadUrl.startsWith('/') ? location.origin + up.uploadUrl : up.uploadUrl, { method: 'PUT', headers: { 'content-type': up.contentType }, body: file });
     if (!put.ok) throw new Error('Upload failed. Try again.');
     status.textContent = `Reading ${file.name}…`;
@@ -826,8 +828,11 @@ $('#docs-table').addEventListener('click', async (e) => {
       docs = (await api('DELETE', `/admin/docs/${d.id}`)).docs; renderDocs(); toast('Deleted.');
     } else if (t.dataset.rename) {
       const d = docs.find((x) => x.id === t.dataset.rename);
-      const title = prompt('New title:', d.title); if (!title || title.trim() === d.title) return;
-      docs = (await api('PUT', `/admin/docs/${d.id}`, { title: title.trim() })).docs; renderDocs(); toast('Renamed.');
+      const title = prompt('Title Pip cites it by:', d.title); if (title === null) return;
+      const body = { title: title.trim() || d.title };
+      if (d.kind !== 'web') { const pub = prompt('Who published it?', d.publisher || 'OMAG'); if (pub === null) return; body.publisher = pub.trim() || 'OMAG'; }
+      if (body.title === d.title && (body.publisher ?? d.publisher) === (d.publisher || 'OMAG')) return;
+      docs = (await api('PUT', `/admin/docs/${d.id}`, body)).docs; renderDocs(); toast('Updated. Pip cites it with the new name now.');
     } else if (t.dataset.view) {
       const d = docs.find((x) => x.id === t.dataset.view);
       const { sections } = await api('GET', `/admin/docs/${d.id}/sections`);
