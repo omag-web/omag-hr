@@ -427,14 +427,14 @@ $('#login-form').addEventListener('submit', async (e) => {
   try {
     if (loginState.step === 'pw') {
       loginState.email = $('#li-email').value.trim().toLowerCase();
-      const r = await cognito('InitiateAuth', { AuthFlow: 'USER_PASSWORD_AUTH', ClientId: AUTH.clientId, AuthParameters: { USERNAME: loginState.email, PASSWORD: $('#li-pw').value } });
+      const r = await cognito('InitiateAuth', { AuthFlow: 'USER_PASSWORD_AUTH', ClientId: AUTH.clientId, AuthParameters: { USERNAME: loginState.email, PASSWORD: $('#li-pw').value.trim() } });
       if (r.ChallengeName === 'NEW_PASSWORD_REQUIRED') { loginState.session = r.Session; setLoginStep('new'); $('#li-new').focus(); return; }
       tok.set(r.AuthenticationResult, loginState.email);
     } else if (loginState.step === 'new') {
-      const r = await cognito('RespondToAuthChallenge', { ChallengeName: 'NEW_PASSWORD_REQUIRED', ClientId: AUTH.clientId, Session: loginState.session, ChallengeResponses: { USERNAME: loginState.email, NEW_PASSWORD: $('#li-new').value } });
+      const r = await cognito('RespondToAuthChallenge', { ChallengeName: 'NEW_PASSWORD_REQUIRED', ClientId: AUTH.clientId, Session: loginState.session, ChallengeResponses: { USERNAME: loginState.email, NEW_PASSWORD: $('#li-new').value.trim() } });
       tok.set(r.AuthenticationResult, loginState.email);
     } else {
-      await cognito('ConfirmForgotPassword', { ClientId: AUTH.clientId, Username: loginState.email, ConfirmationCode: $('#li-code').value.trim(), Password: $('#li-reset-pw').value });
+      await cognito('ConfirmForgotPassword', { ClientId: AUTH.clientId, Username: loginState.email, ConfirmationCode: $('#li-code').value.trim(), Password: $('#li-reset-pw').value.trim() });
       setLoginStep('pw'); $('#li-pw').value = ''; $('#login-err').textContent = ''; toast('Password reset. Sign in with your new password.'); return;
     }
     $('#li-pw').value = ''; $('#li-new').value = '';
