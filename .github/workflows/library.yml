@@ -3,6 +3,8 @@ name: Refresh statute library
 # Rebuilds backend/data/library.json from the Oklahoma Legislature and eCFR,
 # then commits it if anything changed. Runs when the source list or the
 # builder changes, monthly, and on demand (Actions tab → Run workflow).
+# On main, it also uploads the library to Pip's data bucket in AWS, where Pip
+# picks it up within a day (or right away with "Check for updates now").
 
 on:
   workflow_dispatch:
@@ -15,6 +17,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write   # AWS access through the pip-hr-github-deploy role (main only)
 
 concurrency:
   group: library-${{ github.ref }}
@@ -50,3 +53,18 @@ jobs:
           git add backend/data/library.json
           git commit -m "Refresh statute library ($(date -u +%Y-%m-%d))"
           git push
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        if: github.ref == 'refs/heads/main'
+        with:
+          role-to-assume: arn:aws:iam::237264540272:role/pip-hr-github-deploy
+          aws-region: us-east-1
+
+      - name: Publish to Pip
+        if: github.ref == 'refs/heads/main'
+        run: |
+          BUCKET=$(aws cloudformation describe-stacks --stack-name pip-hr --query "Stacks[0].Outputs[?OutputKey=='DataBucketName'].OutputValue" --output text)
+          if [ -z "$BUCKET" ] || [ "$BUCKET" = "None" ]; then echo "The pip-hr stack has no DataBucketName output yet; skipping."; exit 0; fi
+          aws s3 cp backend/data/library.json "s3://$BUCKET/published/library.json" --content-type application/json --only-show-errors
+          aws s3 cp knowledge/sources.json "s3://$BUCKET/published/sources.json" --content-type application/json --only-show-errors
+          echo "Published to s3://$BUCKET/published/"

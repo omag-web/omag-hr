@@ -5,7 +5,7 @@ import { isIP } from 'node:net';
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const TIMEOUT_MS = 20000;
-const UA = 'Mozilla/5.0 (compatible; PipBot/1.0; +https://omag-web.github.io/omag-hr/) OMAG HR assistant';
+const UA = 'Mozilla/5.0 (compatible; PipBot/1.0; +https://www.omag.org/) OMAG HR assistant';
 const err = (msg, status = 400) => Object.assign(new Error(msg), { status });
 
 /* ---------- address checks (don't let a URL reach AWS-internal or private addresses) ---------- */

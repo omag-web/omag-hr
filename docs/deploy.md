@@ -76,7 +76,30 @@ It should return `"ok": true` and about 1,500 library sections.
 1. Edit `web/config.js` and set `apiUrl` to the ApiUrl, with no trailing slash.
 2. Commit and push. GitHub Pages serves the live app at `https://omag-web.github.io/omag-hr/web/`.
 
-To put it on an OMAG domain later (e.g. `ask.omag.org`), point the domain at GitHub Pages or CloudFront, add that origin to `AllowedOrigins`, and redeploy with `sam deploy`.
+Once Pip has its own address on OMAG's domain (next section), the pages are served from AWS instead and GitHub Pages isn't needed.
+
+### Pip's own web address (e.g. pip.omag.org)
+
+Pip's pages can be served from AWS at an address on OMAG's domain. AWS stores the pages in a private S3 bucket and serves them over HTTPS through CloudFront. The deploy sets up the certificate and DNS records itself. This also lets the GitHub repo be private.
+
+1. **Find the hosted zone ID.** In the AWS console, open **Route 53 → Hosted zones** and click `omag.org`. Copy the **Hosted zone ID** (it starts with `Z`). If `omag.org` isn't listed, the domain is in a different AWS account; leave the ID blank and see the note below.
+2. **Run the deploy with the address.** On GitHub, go to **Actions → Deploy backend → Run workflow**. Enter the address (for example `pip.omag.org`) and the hosted zone ID, then click **Run workflow**. The first run takes 10–25 minutes, while AWS issues the certificate and sets up CloudFront.
+3. **Check it.** Open `https://pip.omag.org/` and `https://pip.omag.org/admin/`. Sign in and ask Pip a question.
+4. **Update links.** Change any links on omag.org, in emails or in Squarespace from `omag-web.github.io/omag-hr/web/` to the new address. New admin invitation emails use the new address automatically.
+
+From then on, every change to `web/` publishes itself (the *Publish web pages* workflow). The API stays at its Lambda address; the new site is allowed to call it automatically.
+
+**If the domain is in a different AWS account:** leave the hosted zone ID blank. While the deploy runs, open **Certificate Manager** (in us-east-1) in *this* account, click the certificate for your address, and copy the CNAME name and value under **Domains**. Have whoever manages the domain add that CNAME record. The deploy waits for it. When the deploy finishes, add a CNAME from your address to the **SiteDnsTarget** value (in CloudFormation → `pip-hr` → Outputs).
+
+### Making the GitHub repo private
+
+Do this only after the new address works (above).
+
+1. **Publish the law library to AWS once.** Go to **Actions → Refresh statute library → Run workflow**. The log should end with "Published to s3://…". After that, the admin panel's **Check for updates now** under **Statute library** should say "Already up to date".
+2. **Make it private.** On GitHub, go to **Settings → General → Danger Zone → Change repository visibility → Make private**.
+3. **Turn off GitHub Pages.** Under **Settings → Pages**, unpublish the site if it's still listed. On GitHub's free plan, private repos can't use Pages anyway.
+
+Nothing else changes: the deploy role trusts the repo by its ID, not its visibility. Private repos get 2,000 free GitHub Actions minutes a month, and Pip uses about 150 (the weekly answer check is most of it).
 
 ## 5. Set a spending alert
 
@@ -161,7 +184,7 @@ Some things are built into the code and can't be changed in the panel: Pip ident
 
 To keep conversations for less time, rerun `sam deploy --guided` and lower **RetentionDays**.
 
-**Updating the statute library.** The *Refresh statute library* workflow runs monthly and whenever `knowledge/sources.json` changes. You can also run it from the repo's **Actions** tab. It commits a new `backend/data/library.json`, and GitHub Pages publishes it. The backend checks for a newer library once a day and switches to it automatically (or click **Check for updates now** under **Statute library** in the admin panel). A download that looks incomplete is ignored, and Pip keeps using the library it has.
+**Updating the statute library.** The *Refresh statute library* workflow runs monthly and whenever `knowledge/sources.json` changes. You can also run it from the repo's **Actions** tab. It commits a new `backend/data/library.json` and uploads it to Pip's data bucket in AWS. The backend checks for a newer library once a day and switches to it automatically (or click **Check for updates now** under **Statute library** in the admin panel). A download that looks incomplete is ignored, and Pip keeps using the library it has.
 
 To add a title, section range or CFR part, edit `knowledge/sources.json`. The `_why` notes explain each entry.
 
