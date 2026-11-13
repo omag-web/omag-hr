@@ -14,6 +14,13 @@ Parameters:
   Repository:
     Type: String
     Default: omag-web/omag-hr
+  RepositoryWithIds:
+    Type: String
+    Default: omag-web@312579818/omag-hr@1455880679
+    Description: >-
+      The same repository as GitHub names it in newer identity tokens, with the owner and repository
+      ID numbers. IDs never change, so a deleted-and-recreated repository with the same name can't
+      use this role.
   AppStackName:
     Type: String
     Default: pip-hr
@@ -48,7 +55,10 @@ Resources:
             Condition:
               StringEquals:
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
-                token.actions.githubusercontent.com:sub: !Sub repo:${Repository}:ref:refs/heads/main
+                # GitHub sends one of these, depending on the organization's token format.
+                token.actions.githubusercontent.com:sub:
+                  - !Sub repo:${RepositoryWithIds}:ref:refs/heads/main
+                  - !Sub repo:${Repository}:ref:refs/heads/main
       ManagedPolicyArns:
         # Everything SAM needs (CloudFormation, Lambda, S3, DynamoDB, SNS, Cognito, EventBridge,
         # CloudWatch), except IAM...
