@@ -1,15 +1,102 @@
 [
-  { "q": "Can the mayor suspend an employee on their own?", "form": "town", "expect": ["11-12-106"] },
-  { "q": "Can the mayor suspend an employee on their own?", "form": "aldermanic", "expect": ["11-9-105"] },
-  { "q": "Can the mayor suspend an employee on their own?", "form": "cm", "expect": ["11-10-113"] },
-  { "q": "Can the mayor suspend an employee on their own?", "form": "strong", "expect": ["11-11-106"] },
-  { "q": "Does our town clerk have hiring authority?", "form": "town", "expect": ["11-12-106", "11-12-109"] },
-  { "q": "We have about 30 employees. Do we have to follow FMLA?", "form": "town", "expect": ["29-CFR-825.104", "29-CFR-825.110"] },
-  { "q": "Do we have to post the FMLA notice if nobody is eligible?", "form": "town", "expect": ["29-CFR-825.300"] },
-  { "q": "When do we have to pay a terminated employee's final paycheck?", "form": "town", "expect": ["40-165.3"] },
-  { "q": "Can the council go into executive session to discuss disciplining the police chief?", "form": "aldermanic", "expect": ["25-307"] },
-  { "q": "Are personnel records open to the public if a reporter asks?", "form": "cm", "expect": ["51-24A.7"] },
-  { "q": "Can we give police officers comp time instead of overtime pay?", "form": "cm", "expect": ["29-CFR-553.20"], "any": true },
-  { "q": "Which of our employees need DOT drug and alcohol testing?", "form": "strong", "expect": ["49-CFR-382.103"], "any": true },
-  { "q": "Is a city clerk with a salary automatically exempt from overtime?", "form": "town", "expect": ["29-CFR-541.100", "29-CFR-541.200"], "any": true }
+  {
+    "q": "Can the mayor suspend an employee on their own?",
+    "form": "town",
+    "expect": [
+      "11-12-106"
+    ]
+  },
+  {
+    "q": "Can the mayor suspend an employee on their own?",
+    "form": "aldermanic",
+    "expect": [
+      "11-9-105"
+    ]
+  },
+  {
+    "q": "Can the mayor suspend an employee on their own?",
+    "form": "cm",
+    "expect": [
+      "11-10-113"
+    ]
+  },
+  {
+    "q": "Can the mayor suspend an employee on their own?",
+    "form": "strong",
+    "expect": [
+      "11-11-106"
+    ]
+  },
+  {
+    "q": "Does our town clerk have hiring authority?",
+    "form": "town",
+    "expect": [
+      "11-12-106",
+      "11-12-109"
+    ]
+  },
+  {
+    "q": "We have about 30 employees. Do we have to follow FMLA?",
+    "form": "town",
+    "expect": [
+      [
+        "29-CFR-825.104",
+        "29-CFR-825.108"
+      ],
+      "29-CFR-825.110"
+    ]
+  },
+  {
+    "q": "Do we have to post the FMLA notice if nobody is eligible?",
+    "form": "town",
+    "expect": [
+      "29-CFR-825.300"
+    ]
+  },
+  {
+    "q": "When do we have to pay a terminated employee's final paycheck?",
+    "form": "town",
+    "expect": [
+      "40-165.3"
+    ]
+  },
+  {
+    "q": "Can the council go into executive session to discuss disciplining the police chief?",
+    "form": "aldermanic",
+    "expect": [
+      "25-307"
+    ]
+  },
+  {
+    "q": "Are personnel records open to the public if a reporter asks?",
+    "form": "cm",
+    "expect": [
+      "51-24A.7"
+    ]
+  },
+  {
+    "q": "Can we give police officers comp time instead of overtime pay?",
+    "form": "cm",
+    "expect": [
+      "29-CFR-553.20"
+    ],
+    "any": true
+  },
+  {
+    "q": "Which of our employees need DOT drug and alcohol testing?",
+    "form": "strong",
+    "expect": [
+      "49-CFR-382.103"
+    ],
+    "any": true
+  },
+  {
+    "q": "Is a city clerk with a salary automatically exempt from overtime?",
+    "form": "town",
+    "expect": [
+      "29-CFR-541.100",
+      "29-CFR-541.200"
+    ],
+    "any": true
+  }
 ]
