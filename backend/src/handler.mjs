@@ -140,7 +140,7 @@ async function chat(stream, body, ip, opts = {}) {
     emit({ type: 'status', text: 'Reading your question' });
     result = await runAgent({
       history: messages, form, city: city ? String(city).slice(0, 120) : undefined,
-      library: await getLibrary(), emit, guidance, modelId,
+      library: await getLibrary(), emit, guidance, modelId, fallbackModelId: cfg.settings.fallbackModelId,
       templates: await memberTemplates(FORM_KEYS.includes(form) ? form : 'town').catch((e) => { console.error('templates unavailable', e); return []; })
     });
     emit({ type: 'done', turnId, citations: result.citations, unread: result.unread, documents: result.documents });
@@ -154,7 +154,7 @@ async function chat(stream, body, ip, opts = {}) {
       conversationId, turnId, browserId, ip, city, form, question,
       answer: result?.text, citations: result?.citations, unread: result?.unread,
       usage: result?.usage, toolCalls: result?.toolCalls, latencyMs: Date.now() - started,
-      model: process.env.MODEL_MODE === 'mock' ? 'mock' : modelId, error, preview: !!opts.admin
+      model: process.env.MODEL_MODE === 'mock' ? 'mock' : (result?.model || modelId), error, preview: !!opts.admin
     });
   } catch (e) { console.error('log failed', e); }
   out.end();

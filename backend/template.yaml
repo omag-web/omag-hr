@@ -90,6 +90,19 @@ Resources:
             AllowedMethods: [PUT]
             AllowedHeaders: [content-type]
             MaxAge: 3600
+      # Keep replaced or deleted files (templates, OMAG documents) for 90 days, so mistakes can be undone.
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: old-versions
+            Status: Enabled
+            NoncurrentVersionExpiration: { NoncurrentDays: 90 }
+            ExpiredObjectDeleteMarker: true
+          - Id: imports
+            Status: Enabled
+            Prefix: imports/
+            ExpirationInDays: 1
       Tags:
         - { Key: app, Value: pip }
 
@@ -99,6 +112,9 @@ Resources:
     Properties:
       UserPoolName: !Sub ${AWS::StackName}-admins
       UsernameAttributes: [email]
+      # Two-step sign-in with an authenticator app. OPTIONAL: each admin turns it on in the admin panel.
+      MfaConfiguration: OPTIONAL
+      EnabledMfas: [SOFTWARE_TOKEN_MFA]
       AutoVerifiedAttributes: [email]
       AdminCreateUserConfig:
         AllowAdminCreateUserOnly: true
@@ -167,7 +183,8 @@ Resources:
       Runtime: nodejs22.x
       Architectures: [arm64]
       MemorySize: 1024
-      Timeout: 120
+      # Answers stop researching after ~3 minutes (agent.mjs); this leaves room to finish writing.
+      Timeout: 300
       ReservedConcurrentExecutions: 10
       Environment:
         Variables:
@@ -200,6 +217,7 @@ Resources:
                 - cognito-idp:AdminDisableUser
                 - cognito-idp:AdminEnableUser
                 - cognito-idp:AdminResetUserPassword
+                - cognito-idp:AdminSetUserMFAPreference
               Resource: !GetAtt AdminUserPool.Arn
             - Effect: Allow
               Action:
@@ -257,6 +275,104 @@ Resources:
       ComparisonOperator: GreaterThanOrEqualToThreshold
       TreatMissingData: notBreaching
       AlarmActions: [!Ref ContactTopic]
+
+  # ---------- alerts (emailed to ContactEmail) ----------
+  ThrottleAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: HasContactEmail
+    Properties:
+      AlarmDescription: Pip turned requests away because too many were running at once (reserved concurrency).
+      Namespace: AWS/Lambda
+      MetricName: Throttles
+      Dimensions: [{ Name: FunctionName, Value: !Ref PipFunction }]
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref ContactTopic]
+
+  SlowAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: HasContactEmail
+    Properties:
+      AlarmDescription: A Pip answer took more than 4 minutes (the limit is 5). Check CloudWatch logs and the model.
+      Namespace: AWS/Lambda
+      MetricName: Duration
+      Dimensions: [{ Name: FunctionName, Value: !Ref PipFunction }]
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 240000
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref ContactTopic]
+
+  DailyLimitAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: HasContactEmail
+    Properties:
+      AlarmDescription: Pip reached its daily question limit for everyone. Members are being turned away until midnight UTC. Raise the limit in Settings if this is real use.
+      Namespace: Pip
+      MetricName: GlobalLimitReached
+      Statistic: Sum
+      Period: 3600
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref ContactTopic]
+
+  FallbackAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: HasContactEmail
+    Properties:
+      AlarmDescription: Pip's main AI model failed several times in an hour and Pip used the backup model. Check Amazon Bedrock and the model setting.
+      Namespace: Pip
+      MetricName: ModelFallback
+      Statistic: Sum
+      Period: 3600
+      EvaluationPeriods: 1
+      Threshold: 3
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref ContactTopic]
+
+  # An outside check that Pip answers, every 30 seconds from three regions.
+  HealthCheck:
+    Type: AWS::Route53::HealthCheck
+    Properties:
+      HealthCheckConfig:
+        Type: HTTPS
+        FullyQualifiedDomainName: !Select [2, !Split ['/', !GetAtt PipFunctionUrl.FunctionUrl]]
+        ResourcePath: /health
+        Port: 443
+        RequestInterval: 30
+        FailureThreshold: 3
+        Regions: [us-east-1, us-west-1, us-west-2]
+        EnableSNI: true
+      HealthCheckTags:
+        - { Key: Name, Value: !Sub '${AWS::StackName} Pip API' }
+        - { Key: app, Value: pip }
+
+  DownAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: HasContactEmail
+    Properties:
+      AlarmDescription: Pip's API isn't answering its health check. Members can't use Pip.
+      Namespace: AWS/Route53
+      MetricName: HealthCheckStatus
+      Dimensions: [{ Name: HealthCheckId, Value: !Ref HealthCheck }]
+      Statistic: Minimum
+      Period: 60
+      EvaluationPeriods: 5
+      DatapointsToAlarm: 3
+      Threshold: 1
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: breaching
+      AlarmActions: [!Ref ContactTopic]
+      OKActions: [!Ref ContactTopic]
 
 Outputs:
   AdminUrl:

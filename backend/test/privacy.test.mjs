@@ -47,3 +47,26 @@ test('chat: ID numbers never reach the model or the conversation log', async () 
   assert.match(turns[0].question, /SSN \[Social Security number removed\] wants FMLA leave/);
   assert.ok(!JSON.stringify(turns).includes('6789'));
 });
+
+test('privacy notice: default text, editable in settings, reset by saving the default', async () => {
+  installShim();
+  const { handler } = await import('../src/handler.mjs');
+  const call = async (method, path, body) => {
+    const s = makeResponseStream();
+    await handler({ rawPath: path, headers: {}, body: body ? JSON.stringify(body) : undefined, requestContext: { http: { method, sourceIp: '203.0.113.30' } } }, s);
+    await s.done; return JSON.parse(s.result().body);
+  };
+  const { invalidateConfig } = await import('../src/config.mjs');
+  let c = await call('GET', '/config');
+  assert.match(c.privacyNotice, /## What we keep/);
+  assert.match(c.privacyNotice, /\{retention\}/);
+  assert.equal(c.retentionDays, 730);
+  const a = await call('GET', '/admin/settings');
+  assert.equal(a.privacyDefault, c.privacyNotice);
+  await call('PUT', '/admin/settings', { privacyNotice: '## Privacy\nCustom notice.' });
+  invalidateConfig();
+  c = await call('GET', '/config');
+  assert.equal(c.privacyNotice, '## Privacy\nCustom notice.');
+  const saved = await call('PUT', '/admin/settings', { privacyNotice: a.privacyDefault });
+  assert.equal(saved.settings.privacyNotice, '', 'saving the default text stores "use the default"');
+});

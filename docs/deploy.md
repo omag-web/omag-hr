@@ -92,6 +92,8 @@ The global daily limit already caps spend at a few dollars a day. For a second s
 
 **Adding another admin.** In the admin panel, open **Admins**, enter their email and click **Send invite**. The same page resends invites, emails a password-reset code, turns someone's access off (they're signed out within a minute) or removes them. You can't turn off or remove yourself, so there's always at least one admin. Changes are also possible in the AWS console (**Cognito** → User pools → `pip-hr-admins` → Users) if the panel is ever unavailable.
 
+**Two-step sign-in (recommended for every admin).** Admins can read every member conversation, so a password alone shouldn't be enough. In the admin panel, open **Admins → Your sign-in → Set up two-step sign-in**, scan the code with an authenticator app (Microsoft Authenticator, Google Authenticator or Authy), and enter the 6-digit code. From then on you enter a code from the app after your password. The **Two-step** column shows who has it on. If someone loses their phone, another admin clicks **Reset two-step** next to their name, after confirming it's really them. Once every admin has it on, it can be made required: in `backend/template.yaml` change `MfaConfiguration: OPTIONAL` to `ON` (new admins are then asked to set it up at first sign-in).
+
 ## 7. Automatic deploys from GitHub (recommended)
 
 After this one-time setup, merging a pull request that changes `backend/` deploys Pip automatically. GitHub runs the tests first and deploys only if they pass. You don't run `sam deploy` from your PC any more, so the office firewall doesn't matter.
@@ -143,7 +145,7 @@ Most changes are made in the admin panel and take effect within a minute, with n
 | See usage: questions over time, topics, most-cited laws, busy hours, municipalities, helpful rate, response time, cost; download everything as CSV | **Analytics** (set the Bedrock token prices under **Settings** to see a cost estimate) |
 | Read what members asked, and see 👎 answers | **Conversations** |
 | Read "Talk to OMAG" messages | **Talk to OMAG** (also emailed to ContactEmail) |
-| Change the welcome text, starter questions, disclaimer, phone, model or daily limits | **Settings** |
+| Change the welcome text, starter questions, disclaimer, phone, privacy notice, model, backup model or daily limits | **Settings** |
 | Add, remove or re-invite admins | **Admins** |
 | Add or update a document members can build (personnel policy, FMLA policy…) | **Document templates**: upload a Word file with `{{fields}}`, write the questions, test it, switch it on. The page explains the field syntax. |
 | See or search the statute library, check that its source addresses still work, or change them | **Statute library**: **Check links**, then **Edit sources on GitHub** (steps are on the page) |
@@ -155,7 +157,7 @@ Some things are built into the code and can't be changed in the panel: Pip ident
 - The server removes ID numbers, account numbers and birth dates again before anything reaches the AI or the logs. This also covers "Talk to OMAG" messages.
 - Pip never repeats personal details back and refers to people by role.
 - Names and medical details can't be detected reliably by pattern, so the page asks members to leave them out.
-- The member page doesn't say that conversations are logged. If OMAG publishes a privacy notice for its website or member tools, it should mention that Pip conversations are kept for review.
+- The **Privacy** link under the message box opens a plain-language notice: what's kept, how it's used, how long, and a button to clear conversations saved in that browser. Edit it under **Settings → Privacy notice**, where `{retention}` and `{phone}` fill in automatically. Have OMAG Legal review it.
 
 To keep conversations for less time, rerun `sam deploy --guided` and lower **RetentionDays**.
 
@@ -171,6 +173,29 @@ To add a title, section range or CFR part, edit `knowledge/sources.json`. The `_
 
 **403 Forbidden from the API URL.** The function's resource policy needs both `lambda:InvokeFunctionUrl` and `lambda:InvokeFunction`; the template adds both. In the Lambda console → the function → **Configuration → Permissions → Resource-based policy statements**, you should see two statements allowing `*`. Also check that the page's origin is listed in `AllowedOrigins` (a CORS error shows in the browser console, not as a 403).
 
-**Errors.** CloudWatch → Log groups → `/aws/lambda/pip-hr-PipFunction-…`. ContactEmail gets an alarm if the function errors 5+ times in an hour.
+**Errors.** CloudWatch → Log groups → `/aws/lambda/pip-hr-PipFunction-…`.
+
+## Keeping Pip healthy
+
+**Alarm emails** go to ContactEmail. (The first time, AWS sends a "Subscription Confirmation" email. Click its link, or no alarms arrive.) Each alarm and what to do:
+
+| Alarm | What it means | What to do |
+|---|---|---|
+| **Pip is down** | The /health check failed from several places for 1.5 minutes | Check the Lambda log for errors. If the last deploy caused it, revert that PR on GitHub (it redeploys) |
+| **Errors** | 5+ failed requests in an hour | Read the Lambda log |
+| **Throttled** | AWS refused to run Pip because too many requests were running at once | Usually a burst; if it repeats, ask AWS for a higher Lambda concurrency limit |
+| **Slow answers** | An answer took over 4 minutes | Pip stops researching at about 3 minutes and answers with what it has. If this repeats, the model is slow that day |
+| **Daily limit reached** | The everyone-per-day limit was hit and members were turned away | Raise it under **Settings** if the use is real |
+| **Backup model in use** | The main model failed 3+ times in an hour and Pip switched to the backup | Check the AWS Health dashboard for Bedrock. If the main model was retired, pick a new one under **Settings → AI model** |
+
+**Backup model.** If the main AI model is busy, down or retired, Pip retries that answer with the backup model (**Settings → Backup model**, default GPT-5.6 Luna) instead of showing members an error. Choose "None" to turn this off.
+
+**Weekly answer check.** Every Monday the *Check Pip's answers* workflow asks the 40 questions in `backend/eval/questions.json` using a private copy of Pip. It checks that each answer cites the right laws, never repeats a Social Security number, says it's an AI when asked, and stays on HR. It fails if fewer than 80% pass, and GitHub emails repo watchers. Open the run to see a table of which questions went wrong. Run it by hand from **Actions** after changing the instructions or model. Each run costs about $1–2. To add a question, copy an entry in the file; the ids are the ones shown in Pip's citations (for example `11-12-106` or `29-CFR-825.110`).
+
+**Library safety checks.** If any law listed under `required` in `knowledge/sources.json` goes missing, the library rebuild fails and Pip keeps the current library. That can happen, for example, if the Legislature changes its PDF layout. If the *Refresh statute library* run fails, open it: the log names the missing sections. Oklahoma laws usually take effect July 1 and November 1, and the monthly rebuild picks them up.
+
+**Package updates.** On Mondays, Dependabot opens pull requests when Pip's packages or GitHub Actions have updates; security fixes arrive sooner. Each PR runs the tests. Merge it if they pass, and it deploys automatically.
+
+**Deleted or overwritten files.** The S3 bucket keeps old versions of uploaded OMAG documents and templates for 90 days. DynamoDB has point-in-time recovery for 35 days. Ask whoever manages AWS to restore either if needed.
 
 **Taking it offline.** In the admin panel, set **Settings → Questions per day, everyone** to 0 (members see a "daily limit" message), or delete the stack with `sam delete`.

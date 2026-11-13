@@ -124,3 +124,49 @@ test('parses eCFR XML sections', () => {
   assert.match(s.text, /\(a\) An eligible employee is an employee/);
   assert.match(s.text, /See § 825\.105\(b\) & 825\.111\./);
 });
+
+test('a heading that starts mid-line after a history note becomes its own section', () => {
+  const text = [
+    '§11-22-101. Corporate powers of municipalities.',
+    'All municipalities shall have the powers listed here, and may exercise such other powers as are conferred by law.',
+    'Laws 1977, c. 256, § 22-101, eff. July 1, 1978. §11-22-101.1. Political activities by municipal employees - Restrictions.',
+    'Municipal employees may attend and express their views at city council meetings, or any other public meetings.',
+    'Added by Laws 1985, c. 107, § 1. §11-22-101.2. Employer coercion prohibited.',
+    'No employer shall coerce an employee, as provided in §11-22-101.1 of this title.',
+    'Laws 1990, c. 1, § 1.'
+  ].join('\n');
+  const secs = parseOklahomaText(text, { title: '11', name: 'Cities and Towns', url: 'x' });
+  const ids = secs.map((s) => s.id).sort();
+  assert.deepEqual(ids, ['11-22-101', '11-22-101.1', '11-22-101.2']);
+  const pol = secs.find((s) => s.id === '11-22-101.1');
+  assert.match(pol.heading, /^Political activities/);
+  assert.match(pol.text, /may attend and express their views/);
+  assert.ok(!secs.find((s) => s.id === '11-22-101').text.includes('Political activities'), 'not glued onto the previous section');
+  assert.match(secs.find((s) => s.id === '11-22-101.2').text, /as provided in §11-22-101\.1 of this title/, 'cross-references in the body are left alone');
+});
+
+test('a section number alone on its line takes the next line as its heading', () => {
+  const text = [
+    '§11-8-105. Bonds.',
+    'The governing body shall pay the premiums on such bonds.',
+    'Laws 1977, c. 256, § 8-105, eff. July 1, 1978; Laws 1992, c. 371, § 1, eff. July 1, 1992.',
+    '§11-8-106.',
+    '',
+    'Nepotism - Dual office holding.',
+    '',
+    'No elected or appointed official or other person shall appoint a relative.',
+    'See §11-8-106.1 and §11-8-106 of this title.',
+    'Laws 1977, c. 256, § 8-106.',
+    'Laws 1977, c. 256, § 8-107.§11-9-108.',
+    'Powers vested in council - Designated powers.',
+    'Except as otherwise provided, the council has the powers listed.'
+  ].join('\n');
+  const secs = parseOklahomaText(text, { title: '11', name: 'Cities and Towns', url: 'x' });
+  assert.deepEqual(secs.map((s) => s.id).sort(), ['11-8-105', '11-8-106', '11-9-108']);
+  const nep = secs.find((s) => s.id === '11-8-106');
+  assert.equal(nep.heading, 'Nepotism - Dual office holding');
+  assert.match(nep.text, /shall appoint a relative/);
+  assert.match(nep.text, /See §11-8-106\.1 and §11-8-106 of this title/, 'cross-references stay in the body');
+  assert.ok(!secs.find((s) => s.id === '11-8-105').text.includes('Nepotism'));
+  assert.equal(secs.find((s) => s.id === '11-9-108').heading, 'Powers vested in council - Designated powers');
+});

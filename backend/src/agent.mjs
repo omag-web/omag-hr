@@ -2,9 +2,20 @@
 
 import { converseTurn } from './model.mjs';
 import { TOOL_SPECS, OFFER_DOCUMENT_SPEC, runTool } from './tools.mjs';
+import { metric } from './metrics.mjs';
 import { buildSystemPrompt, FORMS } from './prompt.mjs';
 
 const MAX_TOOL_ROUNDS = 6;
+const TIME_BUDGET_MS = 170_000;   // stop researching after ~3 minutes so the answer finishes inside Lambda's 5-minute limit
+
+/** Errors where trying a different model makes sense (throttling, model outages, a retired or unavailable model). */
+export function isModelFailure(e) {
+  const n = e?.name || '';
+  if (/Throttling|TooManyRequests|ServiceUnavailable|ModelNotReady|ModelTimeout|ModelError|InternalServer|ResourceNotFound|ModelStreamError|TimeoutError/.test(n)) return true;
+  if (n === 'AccessDeniedException' && /model/i.test(e.message || '')) return true;
+  if (n === 'ValidationException' && /model|end of life|not supported|deprecated|inference profile/i.test(e.message || '')) return true;
+  return /ECONNRESET|ETIMEDOUT|socket hang up/i.test(e?.code || e?.message || '');
+}
 const MAX_HISTORY = 16;
 const MAX_MSG_CHARS = 6000;
 
@@ -37,7 +48,25 @@ export function markerIds(text) {
  * emit(event) receives {type:'status'|'text', ...} as things happen.
  * Returns { text, citations, usage, toolCalls }.
  */
-export async function runAgent({ history, form, city, library, emit = () => {}, turn = converseTurn, guidance, modelId, templates = [] }) {
+export async function runAgent({ history, form, city, library, emit = () => {}, turn = converseTurn, guidance, modelId, fallbackModelId, templates = [], timeBudgetMs = TIME_BUDGET_MS, now = Date.now }) {
+  const started = now();
+  let activeModel = modelId;
+  let fellBack = false;
+  /** One model call; if the main model fails, switch to the backup model for the rest of this answer. */
+  const callModel = async (args, onText, onRestart = () => {}) => {
+    let streamed = false;
+    const wrapped = (d) => { streamed = true; onText(d); };
+    try {
+      return await turn({ ...args, modelId: activeModel, onText: wrapped });
+    } catch (e) {
+      if (fellBack || !fallbackModelId || fallbackModelId === activeModel || !isModelFailure(e)) throw e;
+      console.warn(`Model ${activeModel} failed (${e.name}: ${e.message}); using backup model ${fallbackModelId}`);
+      metric('ModelFallback');
+      fellBack = true; activeModel = fallbackModelId;
+      if (streamed) { emit({ type: 'reset' }); onRestart(); }
+      return await turn({ ...args, modelId: activeModel, onText });
+    }
+  };
   const system = buildSystemPrompt({ form: FORMS[form] ? form : undefined, city, guidance, omagDocs: library.omagTitles || [], templates });
   const tools = templates.length ? [...TOOL_SPECS, OFFER_DOCUMENT_SPEC] : TOOL_SPECS;
   const offers = [];
@@ -50,16 +79,11 @@ export async function runAgent({ history, form, city, library, emit = () => {}, 
   // Sections cited earlier in the conversation stay citable.
   for (const m of history) if (m.role === 'assistant') markerIds(m.text).forEach((id) => library.get(id) && seen.add(library.normalizeId(id)));
 
+  let outOfTime = false;
   for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
-    const lastRound = round === MAX_TOOL_ROUNDS;
+    const lastRound = round === MAX_TOOL_ROUNDS || outOfTime;
     let turnText = '';
-    const res = await turn({
-      system,
-      modelId,
-      messages,
-      tools,
-      onText: (d) => { turnText += d; emit({ type: 'text', text: d }); }
-    });
+    const res = await callModel({ system, messages, tools }, (d) => { turnText += d; emit({ type: 'text', text: d }); }, () => { turnText = ''; });
     for (const k of Object.keys(usage)) usage[k] += res.usage?.[k] || 0;
     messages.push({ role: 'assistant', content: res.content });
 
@@ -83,6 +107,12 @@ export async function runAgent({ history, form, city, library, emit = () => {}, 
       emit({ type: 'status', text: r.status });
       results.push({ toolResult: { toolUseId: toolUse.toolUseId, content: [{ json: r.result }] } });
     }
+    // Running long: tell the model to answer now from what it has read.
+    if (!outOfTime && now() - started > timeBudgetMs) {
+      outOfTime = true;
+      metric('TimeBudgetReached');
+      results.push({ text: 'Time is almost up. Write your answer now using only the sections you have already read, and do not call any more tools. If something is still uncertain, say so and suggest the member confirm with OMAG or their municipal attorney.' });
+    }
     messages.push({ role: 'user', content: results });
   }
 
@@ -96,5 +126,5 @@ export async function runAgent({ history, form, city, library, emit = () => {}, 
   }
   // One button per document, last answers win.
   const documents = [...new Map(offers.map((o) => [o.templateId, o])).values()];
-  return { text: finalText, citations, unread, usage, toolCalls, documents };
+  return { text: finalText, citations, unread, usage, toolCalls, documents, model: activeModel, fellBack };
 }

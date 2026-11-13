@@ -1,14 +1,14 @@
 // /admin/* routes. Every route requires a signed-in admin (see auth.mjs).
 
 import { requireAdmin } from './auth.mjs';
-import { getConfig, getGuidanceState, saveDraft, discardDraft, publishDraft, restoreToDraft, saveSettings, MODELS, validateGuidance } from './config.mjs';
+import { getConfig, getGuidanceState, saveDraft, discardDraft, publishDraft, restoreToDraft, saveSettings, MODELS, validateGuidance, DEFAULT_PRIVACY_NOTICE } from './config.mjs';
 import { listDocs, createUpload, processDoc, updateDoc, deleteDoc, addWebsite, fetchWebsite } from './docs.mjs';
 import { getLibrary, libraryStatus, refreshLibrary, librarySources, checkSources } from './library.mjs';
 import { listTurns, getConversation, listContacts, usageStats } from './store.mjs';
 import { analytics } from './analytics.mjs';
 import { listTemplates, getTemplate, createTemplate, updateTemplate, deleteTemplate, variantUploadUrl, attachVariant, removeVariant, fillTemplate, exportPack, importPack, importUploadUrl, VARIANT_LABEL, FIELD_TYPES, PREFILLS } from './templates.mjs';
 import { blobs } from './storage.mjs';
-import { listAdmins, inviteAdmin, resendAccess, setAdminEnabled, removeAdmin } from './admins.mjs';
+import { listAdmins, inviteAdmin, resendAccess, setAdminEnabled, removeAdmin, resetMfa } from './admins.mjs';
 
 const routes = [];
 const on = (method, pattern, fn) => routes.push({ method, re: new RegExp('^' + pattern.replace(/:(\w+)/g, '(?<$1>[A-Za-z0-9_\\-]+)') + '$'), fn });
@@ -40,6 +40,7 @@ on('POST', '/admin/admins', async ({ body, admin }) => { const u = await inviteA
 on('POST', '/admin/admins/:id/resend', async ({ params, admin }) => withYou(admin, await resendAccess(params.id)));
 on('POST', '/admin/admins/:id/disable', async ({ params, admin }) => { const r = await setAdminEnabled(params.id, false, admin); console.log('admin disabled', params.id, 'by', admin.email); return withYou(admin, r); });
 on('POST', '/admin/admins/:id/enable', async ({ params, admin }) => { const r = await setAdminEnabled(params.id, true, admin); console.log('admin enabled', params.id, 'by', admin.email); return withYou(admin, r); });
+on('POST', '/admin/admins/:id/reset-mfa', async ({ params, admin }) => { const r = await resetMfa(params.id, admin); console.log('admin MFA reset', params.id, 'by', admin.email); return withYou(admin, r); });
 on('DELETE', '/admin/admins/:id', async ({ params, admin }) => { const r = await removeAdmin(params.id, admin); console.log('admin removed', params.id, 'by', admin.email); return withYou(admin, r); });
 
 /* document templates */
@@ -74,8 +75,9 @@ on('POST', '/admin/guidance/publish', async ({ body, admin }) => { await publish
 on('POST', '/admin/guidance/restore', async ({ body, admin }) => { await restoreToDraft(String(body.id || ''), admin.email); return getGuidanceState(); });
 
 /* settings */
-on('GET', '/admin/settings', async () => ({ settings: (await getConfig({ fresh: true })).settings, models: MODELS }));
-on('PUT', '/admin/settings', async ({ body, admin }) => ({ settings: await saveSettings(body || {}, admin.email), models: MODELS }));
+const settingsExtra = { models: MODELS, privacyDefault: DEFAULT_PRIVACY_NOTICE, retentionDays: Number(process.env.RETENTION_DAYS || 730) };
+on('GET', '/admin/settings', async () => ({ settings: (await getConfig({ fresh: true })).settings, ...settingsExtra }));
+on('PUT', '/admin/settings', async ({ body, admin }) => ({ settings: await saveSettings(body || {}, admin.email), ...settingsExtra }));
 
 /* documents */
 on('GET', '/admin/docs', async () => ({ docs: await listDocs() }));
