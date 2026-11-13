@@ -37,8 +37,8 @@ export function markerIds(text) {
  * emit(event) receives {type:'status'|'text', ...} as things happen.
  * Returns { text, citations, usage, toolCalls }.
  */
-export async function runAgent({ history, form, city, library, emit = () => {}, turn = converseTurn }) {
-  const system = buildSystemPrompt({ form: FORMS[form] ? form : undefined, city });
+export async function runAgent({ history, form, city, library, emit = () => {}, turn = converseTurn, guidance, modelId }) {
+  const system = buildSystemPrompt({ form: FORMS[form] ? form : undefined, city, guidance, omagDocs: library.omagTitles || [] });
   const messages = toConverseMessages(history);
   const seen = new Set();          // section ids the model has read this turn
   const usage = { inputTokens: 0, outputTokens: 0, cacheReadInputTokens: 0, cacheWriteInputTokens: 0 };
@@ -53,6 +53,7 @@ export async function runAgent({ history, form, city, library, emit = () => {}, 
     let turnText = '';
     const res = await turn({
       system,
+      modelId,
       messages,
       tools: TOOL_SPECS,
       onText: (d) => { turnText += d; emit({ type: 'text', text: d }); }

@@ -92,15 +92,15 @@ Rejected alternatives: **Glean** (internal-employee search, ~100-seat minimum ar
 
 ## Phases
 
-1. ✅ **Built (November 2026)**, ready to deploy (`docs/deploy.md`). **Statute Q&A with citations:** system prompt, statute library, retrieval, streaming chat UI, city picker, logging.
+1. ✅ **Live (November 2026).** **Statute Q&A with citations:** system prompt, statute library, retrieval, streaming chat UI, city picker, logging.
 2. **Document generation:** the four personnel templates + FMLA policy + acknowledgment receipt as fillable .docx.
-3. **Analytics dashboard and hardening:** WAF, budget alerts, evaluation script, review queue.
+3. **Admin panel and hardening:** ✅ admin panel (Cognito sign-in; editable instructions with draft, preview, publish and version history; OMAG document uploads Pip can cite; conversation review with 👎 filter; "Talk to OMAG" inbox; settings; daily automatic statute library refresh), ✅ evaluation script, ✅ budget alert. Still to do: WAF.
 
 ## Open decisions
 
 - [ ] OML permission to use the 2025 Handbook in a public, member-facing tool
 - [ ] Retention period for transcripts (e.g. 12–24 months, keep anonymized stats), and whether logs are subject to records-retention or open-records requirements; check with OMAG Legal
-- [ ] Who at OMAG can read transcripts vs. only summary numbers
+- [ ] Who at OMAG can read transcripts vs. only summary numbers (today every admin-panel user sees everything)
 - [ ] Terms-of-use line telling users conversations are logged to improve the service
 - [ ] Domain (e.g. `ask.omag.org`) and whether to also embed it full-height on omag.org
 - [ ] Charter cities: no OMAG template; start from Council-Manager and flag sections to check against the charter?

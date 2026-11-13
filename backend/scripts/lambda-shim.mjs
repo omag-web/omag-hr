@@ -4,7 +4,7 @@
 import { Writable } from 'node:stream';
 
 export function installShim() {
-  if (globalThis.awslambda) return;
+  if (typeof globalThis.awslambda?.streamifyResponse === 'function') return;
   globalThis.awslambda = {
     streamifyResponse: (fn) => fn,
     HttpResponseStream: {
