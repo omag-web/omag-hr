@@ -51,6 +51,48 @@ test('parses Oklahoma sections, skips TOC, headers and repealed sections', () =>
   assert.equal(secs[2].heading, 'Inspection, copying and/or mechanical reproduction of records - Exemptions');
 });
 
+const OK_REAL_SHAPES = `§11-10-116.  Vice-mayor - Duties. ............................................................
+.............................................................................................. 67
+Oklahoma Statutes - Title 11. Cities and Towns
+
+§11-1-102.  Definitions.
+As used in the Oklahoma Municipal Code:
+1.  "Charter municipality" means any municipality which has adopted a charter in accordance with the provisions of the Constitution and laws of
+Oklahoma Statutes - Title 11. Cities and Towns
+
+Page 3
+Oklahoma and at the time of adoption of the charter had a population of two thousand (2,000) or more;
+2.  "City" means a municipality which has incorporated as a city.
+Laws 1977, c. 256, § 1-102, eff. July 1, 1978; Laws 2015, c. 47, § 1.
+
+§11-10-116.  Vice-mayor - Duties.
+The vice-mayor shall perform the duties of mayor during the absence of the mayor.
+Laws 1977, c. 256, § 10-116, eff. July 1, 1978.
+
+§51-24A.5.  See the following versions:
+OS 51-24A.5v1 (HB 1, Laws 2025, c. 1, § 1)
+
+§51-24A.5v2.  Inspection, copying and/or mechanical reproduction of records - Exemptions.
+All records of public bodies shall be open to any person for inspection.
+`;
+
+test('handles wrapped TOC lines, bare page headers, inline history and versions', () => {
+  const secs = parseOklahomaText(OK_REAL_SHAPES, { title: '11', name: 'Cities and Towns', url: 'u' });
+  const byId = Object.fromEntries(secs.map((s) => [s.id, s]));
+  assert.deepEqual(Object.keys(byId).sort(), ['11-1-102', '11-10-116', '51-24A.5v2']);
+  assert.equal(byId['11-10-116'].text, 'The vice-mayor shall perform the duties of mayor during the absence of the mayor.');
+  assert.equal(byId['11-10-116'].history, 'Laws 1977, c. 256, § 10-116, eff. July 1, 1978.');
+  const def = byId['11-1-102'];
+  assert.doesNotMatch(def.text, /Oklahoma Statutes - Title|Page 3/);
+  assert.match(def.text, /laws of Oklahoma and at the time of adoption/);
+  assert.equal(def.history, 'Laws 1977, c. 256, § 1-102, eff. July 1, 1978; Laws 2015, c. 47, § 1.');
+  assert.match(def.text, /2\. "City" means a municipality which has incorporated as a city\.$/);
+  const v = byId['51-24A.5v2'];
+  assert.equal(v.baseId, '51-24A.5');
+  assert.equal(v.version, 2);
+  assert.equal(v.cite, '11 O.S. § 24A.5 (version 2)'.replace('11 O.S.', '11 O.S.'));
+});
+
 test('include patterns', () => {
   assert.ok(included('11-12-106', ['^11-12-']));
   assert.ok(included('25-307', ['^25-3(0[1-9]|1[0-4])(\\.|$)']));

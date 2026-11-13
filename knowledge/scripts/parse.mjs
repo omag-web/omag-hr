@@ -16,18 +16,18 @@ export function parseOklahomaText(text, { title, name, url }) {
     .replace(/\f/g, '\n')
     .split('\n')
     .map((l) => l.replace(/ /g, ' ').replace(/[ \t]+$/g, ''))
-    // running page headers / footers
-    .filter((l) => !/^\s*Oklahoma Statutes\s*-\s*Title\s+\S+.*Page\s+\d+\s*$/i.test(l))
-    .filter((l) => !/^\s*Page\s+\d+\s*$/i.test(l));
+    // running page headers / footers, and table-of-contents dot leaders
+    .filter((l) => !/^\s*Oklahoma Statutes\s*-\s*Title\s+\S+/i.test(l))
+    .filter((l) => !/^\s*Page\s+\d+(\s+of\s+\d+)?\s*$/i.test(l))
+    .filter((l) => !/\.{5,}/.test(l));
 
   const HEAD = /^\s*§\s*(\d+[A-Z]?-[0-9A-Za-z.\-]*[0-9A-Za-z])\.\s+(.*)$/;
-  const TOC = /\.{4,}\s*\d+\s*$/;
   const sections = [];
   let cur = null;
 
   for (const line of lines) {
     const m = line.match(HEAD);
-    if (m && !TOC.test(line)) {
+    if (m) {
       if (cur) sections.push(cur);
       cur = { id: m[1], heading: m[2].trim(), body: [] };
       continue;
@@ -36,9 +36,14 @@ export function parseOklahomaText(text, { title, name, url }) {
   }
   if (cur) sections.push(cur);
 
-  return sections
-    .map((s) => finishOklahomaSection(s, { title, name, url }))
-    .filter(Boolean);
+  // The table of contents repeats every heading with no body; when an id appears
+  // more than once keep the version with the most text.
+  const best = new Map();
+  for (const s of sections.map((x) => finishOklahomaSection(x, { title, name, url })).filter(Boolean)) {
+    const prev = best.get(s.id);
+    if (!prev || s.text.length > prev.text.length) best.set(s.id, s);
+  }
+  return [...best.values()];
 }
 
 function finishOklahomaSection(s, { title, name, url }) {
@@ -54,6 +59,8 @@ function finishOklahomaSection(s, { title, name, url }) {
   heading = heading.replace(/\s+/g, ' ').replace(/\.$/, '').trim();
 
   if (/^(repealed|renumbered|blank|reserved)\b/i.test(heading)) return null;
+  // "See the following versions: OS 85A-2v1 ... | OS 85A-2v2 ..." — the versions are their own sections.
+  if (/^See the following versions/i.test(heading)) return null;
 
   // Paragraphs: blank lines separate paragraphs; join wrapped lines.
   const paras = [];
@@ -69,18 +76,37 @@ function finishOklahomaSection(s, { title, name, url }) {
   }
   if (buf.length) paras.push(buf.join(' '));
 
+  // Re-join paragraphs split by a page break mid-sentence.
+  for (let i = paras.length - 1; i > 0; i--) {
+    const prev = paras[i - 1].trim();
+    const next = paras[i].trim();
+    const prevUnfinished = !/[.;:!?)"”]$/.test(prev);
+    const nextIsNewItem = /^(\d{1,3}\.|[A-Z]\.|\(?[a-z0-9]{1,3}\))\s/.test(next);
+    if (prevUnfinished && !nextIsNewItem) {
+      paras.splice(i - 1, 2, paras[i - 1] + ' ' + paras[i]);
+    }
+  }
+
   // History notes ("Laws 1977, c. 256, ...", "Added by Laws ...", "R.L. 1910 ...") go last.
   const history = [];
-  while (paras.length && /^(Laws\s+\d{4}|Added by|Amended by|R\.L\.\s|Renumbered|Historical Data|St\.Ann\.)/.test(paras[paras.length - 1])) {
-    history.unshift(paras.pop());
+  const HIST = /^(Laws\s+\d{4}|Added by|Amended by|R\.L\.\s|Renumbered|Historical Data|St\.Ann\.)/;
+  while (paras.length && HIST.test(paras[paras.length - 1])) history.unshift(paras.pop());
+  // History often runs straight on from the last sentence: "...costs. Laws 1977, c. 256, § 12-106, eff. ..."
+  if (paras.length) {
+    const last = paras[paras.length - 1];
+    const m = last.match(/^([\s\S]*?[.;:)"])\s+((?:Added by |Amended by )?(?:Laws|R\.L\.)\s+\d{4}\b[\s\S]*)$/);
+    if (m && m[1].trim()) { paras[paras.length - 1] = m[1]; history.unshift(m[2]); }
   }
   const text = paras.map((p) => p.replace(/\s+/g, ' ').trim()).filter(Boolean).join('\n\n');
   if (!text) return null;
 
   const [, rest] = s.id.match(/^\d+[A-Z]?-(.*)$/) || [];
+  // Conflicting amendments are published as separate versions, e.g. 51-24A.5v1 and 51-24A.5v2.
+  const ver = rest.match(/^(.*?)v(\d+)$/);
   return {
     id: s.id,
-    cite: `${title} O.S. § ${rest}`,
+    ...(ver ? { baseId: s.id.replace(/v\d+$/, ''), version: Number(ver[2]) } : {}),
+    cite: ver ? `${title} O.S. § ${ver[1]} (version ${ver[2]})` : `${title} O.S. § ${rest}`,
     heading,
     jurisdiction: 'OK',
     source: `Oklahoma Statutes, Title ${title} (${name})`,
