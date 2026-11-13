@@ -1,5 +1,7 @@
 # System prompt (starting point)
 
+> **The live prompt is [`backend/src/prompt.mjs`](../backend/src/prompt.mjs).** It adapts the instructions below and adds the citation and form-of-government rules. This file is kept as the record of what the CustomGPT said.
+
 Carried over verbatim from the "Oklahoma Municipal HR Assistant" CustomGPT (author: Caylee Ralls, v0.7.1). Adjust for the new build where noted at the bottom.
 
 ---

@@ -51,7 +51,7 @@ API Gateway + Lambda ── Bedrock Converse API ── Claude Sonnet (model ID 
 Decisions:
 
 - **Model:** Claude Sonnet via Amazon Bedrock, so data stays in OMAG's AWS account and bills through AWS. OpenAI GPT models are also on Bedrock. Keep the model ID in an environment variable and use the Converse API so switching is a config change. Test answers against both before launch.
-- **Retrieval:** use **S3 Vectors** or keep the corpus small enough to load with caching. **Avoid Bedrock Knowledge Bases on OpenSearch Serverless**: its idle minimum costs more than the model at this volume.
+- **Retrieval:** the library (~1,500 sections, 3.4 MB) is small enough to search in memory with BM25 keyword search, with Pip choosing its own searches through tool calls. That needs no vector database and costs nothing extra. **Avoid Bedrock Knowledge Bases on OpenSearch Serverless**: its idle minimum costs more than the model at this volume. If keyword search turns out to miss things in testing, add embeddings with S3 Vectors.
 - **Model lifecycle:** check the chosen model's Bedrock model card for its end-of-life floor and notice period. Subscribe to AWS Health / EventBridge deprecation notices.
 - **Evaluation:** keep 30–50 real member questions with known-good answers as a script. Rerun it whenever the prompt, sources or model change.
 
@@ -93,7 +93,7 @@ Rejected alternatives: **Glean** (internal-employee search, ~100-seat minimum ar
 
 ## Phases
 
-1. **Statute Q&A with citations:** system prompt, statute library, retrieval, streaming chat UI, city picker, logging.
+1. ✅ **Built (November 2026)**, ready to deploy (`docs/deploy.md`). **Statute Q&A with citations:** system prompt, statute library, retrieval, streaming chat UI, city picker, logging.
 2. **Document generation:** the four personnel templates + FMLA policy + acknowledgment receipt as fillable .docx.
 3. **Analytics dashboard and hardening:** WAF, budget alerts, evaluation script, review queue.
 

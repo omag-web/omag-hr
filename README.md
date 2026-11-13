@@ -1,33 +1,50 @@
 # Pip — OMAG's HR Assistant
 
-**Pip** is a member-facing HR assistant for Oklahoma municipalities, replacing OMAG's "Oklahoma Municipal HR Assistant" CustomGPT. Members ask employment-law questions answered from Oklahoma statutes (Title 11 and others), federal regulations and OMAG guidance, with citations, and generate documents (personnel handbook, FMLA policy, acknowledgment receipt) from OMAG's templates.
+**Pip** is a member-facing HR assistant for Oklahoma municipalities, replacing OMAG's "Oklahoma Municipal HR Assistant" CustomGPT. Members ask employment-law questions and get answers grounded in Oklahoma statutes (Title 11 and others) and federal regulations. Every legal point links to the actual section text. Pip also generates documents (personnel handbook, FMLA policy, acknowledgment receipt) from OMAG's templates.
 
-**Status:** prototype / planning. Nothing here talks to a backend yet.
+**Status:** Phase 1 is built: live Q&A with verified citations. It's ready to deploy (see [`docs/deploy.md`](docs/deploy.md)).
 
-**Name:** "Pip" is a working name. In the prototype it's set once (`const BOT = 'Pip'` in `prototype/index.html`). Its icon is a single gold dot (the "pip") in a chat bubble, in OMAG navy and gold. Always show it with the descriptor "OMAG's HR assistant" and an **AI** label so members don't mistake it for OMAG staff.
+**Name:** "Pip" is a working name, set in one place in each front end (`const BOT = 'Pip'`). Its icon is a single gold dot (the "pip") in a chat bubble, in OMAG navy and gold. Always show the name with the descriptor "OMAG's HR assistant" and an **AI** label, so members don't mistake it for OMAG staff.
 
 ## What's in the repo
 
 | Path | What it is |
 |---|---|
-| [`prototype/index.html`](prototype/index.html) | Clickable front-end prototype with scripted answers. Single self-contained file — open it in a browser. |
-| [`docs/scope.md`](docs/scope.md) | Scope, architecture, cost estimate, analytics plan and open decisions. |
-| [`docs/system-prompt.md`](docs/system-prompt.md) | The CustomGPT's instructions, carried over as the starting system prompt. |
-| [`assets/`](assets/) | Pip's icon: `pip-icon.svg` (navy tile, for light backgrounds and app icons), `pip-mark-on-dark.svg` (no tile, for navy backgrounds), `pip-icon-512.png`. |
+| [`web/`](web/) | **The live app.** One page that streams answers from the backend. Set the API address in `web/config.js`. |
+| [`backend/`](backend/) | **The API.** AWS Lambda + Amazon Bedrock + DynamoDB, deployed with AWS SAM (`template.yaml`). |
+| [`backend/data/library.json`](backend/data/) | **The statute library** Pip searches: ~1,500 sections. Generated; don't edit by hand. |
+| [`knowledge/`](knowledge/) | What goes in the library (`sources.json`) and the scripts that build it from the Oklahoma Legislature and eCFR. |
+| [`prototype/`](prototype/index.html) | The original clickable prototype with scripted answers, kept as a demo. |
+| [`docs/`](docs/) | [`deploy.md`](docs/deploy.md) (how to deploy and run it), [`scope.md`](docs/scope.md) (plan and decisions), [`system-prompt.md`](docs/system-prompt.md) (the CustomGPT's original instructions). |
+| [`assets/`](assets/) | Pip's icon: `pip-icon.svg` (navy tile, for light backgrounds), `pip-mark-on-dark.svg` (no tile, for navy backgrounds), `pip-icon-512.png`. |
 
-## Running the prototype
+## How it works
 
-Open `prototype/index.html` in any browser, or enable GitHub Pages for this repo and visit `/prototype/`. No build step.
+1. A member asks a question in `web/`. The page sends the conversation and the selected form of government to `POST /chat`.
+2. The Lambda gives Claude (on Bedrock) Pip's system prompt (`backend/src/prompt.mjs`) and two tools: `search_law`, a keyword search over the library, and `get_sections`, which reads full text.
+3. Claude researches, then writes an answer that cites sections as `[[11-12-106]]`. The answer streams back word by word.
+4. The backend keeps only citations to sections Claude actually read. The page turns them into chips that open the section text (`GET /source`).
+5. Each answered question is logged to DynamoDB with its citations and token use. Thumbs up/down (`/feedback`) and "Talk to OMAG" (`/contact`, emailed via SNS) are stored with it.
 
-Things to try:
+No accounts: conversation history lives in the member's browser. IP addresses are hashed and used only for the daily limits.
 
-- Ask **"Can the mayor suspend an employee unilaterally?"**, then change **Form of government** in the top bar and ask again — the answer and citations change per Title 11.
-- Click any citation chip to see the statute text (Title 11) or a regulation summary (29 C.F.R.).
-- **Document templates → Personnel policies handbook** — fill in the blanks and download a real `.docx`.
-- **"Is our handbook FMLA compliant?"** → **Upload our handbook** — simulated review (sample findings).
+## Run it locally
 
-Free-typed questions without a script get a "prototype" message with suggestions.
+```bash
+cd backend
+npm install
+npm test                 # 19 tests, no AWS needed
+npm run dev:mock         # http://localhost:8787 with a scripted stand-in model
+```
 
-## Going from prototype to product
+To use the real model locally, see [`docs/deploy.md`](docs/deploy.md#2-try-it-locally-against-the-real-model-optional-recommended).
 
-The prototype's `route(q)` function stands in for the backend. In the real build it becomes a `fetch` to an API (Lambda → Amazon Bedrock) that streams the answer back; the rest of the UI stays. See [`docs/scope.md`](docs/scope.md).
+## The statute library
+
+The **Refresh statute library** GitHub Action (`.github/workflows/library.yml`) runs monthly, whenever `knowledge/` changes, and on demand. It downloads the current Oklahoma titles and CFR parts, splits them into sections, and commits `backend/data/library.json`. Redeploy the backend to ship an updated library.
+
+Current coverage: Title 11 (forms of government, officers, charter cities, general powers, liability, fire/police bargaining), the Open Meeting Act, Title 40 (labor), military leave, the Governmental Tort Claims Act and Open Records Act, medical marijuana employment provisions, Title 85A (workers' comp), and 29 C.F.R. Parts 825 (FMLA), 553 and 541 (FLSA), 785 (hours worked), 1630 (ADA), plus 49 C.F.R. Parts 382 and 40 (DOT testing).
+
+## Prototype
+
+Open `prototype/index.html` in a browser, or visit `/prototype/` on GitHub Pages. Its answers are scripted; it's kept for demos.

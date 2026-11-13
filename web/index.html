@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pip – OMAG's HR Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#16324f; --navy-2:#1f4166; --navy-3:#24486e; --navy-line:#2c4c6f;
+  --accent:#3a6a9a; --accent-dk:#2b5785; --accent-bg:#eaf1f8; --accent-line:#c9daea;
+  --gold:#d4a72c; --gold-bg:#fbf6e6; --gold-line:#ecdcaa; --gold-ink:#5c4400;
+  --ink:#1c2733; --ink-2:#3c4855; --muted:#5a6675; --line:#e3e7ec; --line-2:#d3dae2;
+  --bg:#f6f7f9; --white:#fff;
+  --ok:#1f7a4d; --ok-bg:#e8f5ee; --warn:#8a5a00; --warn-bg:#fdf3dc; --bad:#b4332b; --bad-bg:#fbeaea;
+  --radius:12px;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font-family:'Public Sans',system-ui,-apple-system,Segoe UI,sans-serif;color:var(--ink);background:var(--bg);-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit}
+button{cursor:pointer}
+a{color:var(--accent-dk)}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+:focus-visible{outline:3px solid #7fb0e0;outline-offset:2px}
+svg{flex:none}
+
+/* ---------- layout ---------- */
+.app{display:flex;height:100vh;height:100dvh;overflow:hidden}
+.sidebar{width:280px;flex:none;background:var(--navy);color:#e8eef5;display:flex;flex-direction:column;gap:22px;padding:18px 14px;overflow-y:auto}
+.main{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--white);position:relative}
+
+/* sidebar */
+.brand{display:flex;align-items:center;gap:10px;padding:4px 8px}
+.brand-mark{width:40px;height:40px;flex:none;display:flex}
+.brand-mark svg,.ai-mark svg,.welcome-mark svg{display:block;width:100%;height:100%}
+.brand-name{font-weight:700;font-size:15px;line-height:1.2}
+.brand-sub{font-size:12px;color:#a9bccf}
+.ai-name{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--ink);margin-bottom:-4px}
+.ai-tag{display:inline-flex;padding:1px 6px;border-radius:5px;background:#eef2f6;border:1px solid var(--line-2);color:var(--muted);font-size:10.5px;font-weight:700;letter-spacing:.5px}
+.new-btn{display:flex;align-items:center;gap:10px;min-height:44px;padding:0 14px;border-radius:10px;border:1px solid #3b5a7a;background:var(--navy-2);color:#fff;font-size:14px;font-weight:600;text-align:left}
+.new-btn:hover{background:var(--navy-3);border-color:var(--gold)}
+.side-group{display:flex;flex-direction:column;gap:2px}
+.side-label{font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:#a9bccf;padding:0 10px 6px}
+.side-item{display:flex;align-items:center;gap:10px;min-height:40px;padding:0 10px;border-radius:8px;color:#dbe5ef;font-size:14px;background:none;border:none;border-left:3px solid transparent;text-align:left;width:100%}
+.side-item:hover{background:#1f4166;color:#fff}
+.side-item.active{background:var(--navy-3);color:#fff;border-left-color:var(--gold)}
+.side-item .tag{margin-left:auto;font-size:10.5px;font-weight:700;letter-spacing:.4px;color:#a9bccf}
+.side-logo{margin-top:auto;padding:18px 10px 6px;border-top:1px solid var(--navy-line);display:flex;flex-direction:column;gap:6px}
+.side-logo img{display:block;width:118px;height:auto}
+.side-logo span{font-size:11.5px;color:#a9bccf;line-height:1.4}
+
+/* header */
+.topbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 12px;padding:12px 24px;border-bottom:1px solid var(--line);min-height:64px}
+.topbar-left{display:flex;align-items:center;gap:12px;min-width:0}
+.menu-btn{display:none;width:40px;height:40px;border-radius:8px;border:1px solid var(--line-2);background:#fff;align-items:center;justify-content:center}
+.title{margin:0;font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.subtitle{font-size:12.5px;color:var(--muted)}
+.demo-pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;background:var(--gold-bg);border:1px solid var(--gold-line);color:var(--gold-ink);font-size:12px;font-weight:600;white-space:nowrap}
+.topbar-right{display:flex;gap:8px;align-items:center}
+.gov-control{display:flex;align-items:center;gap:8px;padding:4px 6px 4px 12px;border-radius:10px;background:var(--accent-bg);border:1px solid var(--accent-line)}
+.gov-control label{font-size:12px;font-weight:700;color:var(--accent-dk);white-space:nowrap;display:flex;align-items:center;gap:6px}
+.gov-select{min-height:34px;padding:0 30px 0 10px;border-radius:7px;border:1px solid var(--accent-line);background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%232b5785' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 10px center;-webkit-appearance:none;appearance:none;font-size:14px;font-weight:600;color:var(--ink);cursor:pointer}
+.gov-select:hover{border-color:var(--accent)}
+.gov-control.flash{animation:flash 1.2s ease}
+@keyframes flash{0%,100%{box-shadow:0 0 0 0 rgba(212,167,44,0)}30%{box-shadow:0 0 0 4px rgba(212,167,44,.55)}}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 14px;border-radius:8px;border:1px solid var(--line-2);background:#fff;color:var(--ink);font-size:14px;font-weight:600;white-space:nowrap}
+.btn:hover{background:#f3f6f9}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{background:var(--accent-dk);border-color:var(--accent-dk)}
+.btn.sm{min-height:34px;padding:0 12px;font-size:13px}
+
+/* thread */
+.thread{flex:1;overflow-y:auto;padding:28px 20px 12px;scroll-behavior:smooth}
+.thread-inner{max-width:800px;margin:0 auto;display:flex;flex-direction:column;gap:26px}
+.msg-user{display:flex;justify-content:flex-end}
+.bubble{max-width:82%;background:var(--accent-bg);border-radius:16px 16px 4px 16px;padding:12px 16px;font-size:15px;line-height:1.55}
+.file-chip{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:10px;background:#fff;border:1px solid var(--accent-line);font-size:13.5px;font-weight:600;margin-bottom:8px}
+.msg-ai{display:flex;gap:14px;align-items:flex-start}
+.ai-mark{flex:none;width:34px;height:34px}
+.ai-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:12px;font-size:15px;line-height:1.62}
+.ai-body p{margin:0}
+.block{animation:rise .35s ease both}
+@keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.points{display:flex;flex-direction:column;gap:10px;margin:0;padding:0;list-style:none;counter-reset:pt}
+.points li{display:flex;gap:10px;counter-increment:pt}
+.points li::before{content:counter(pt) ".";color:var(--muted);flex:none;min-width:16px}
+.cite{display:inline-flex;align-items:center;gap:4px;padding:1px 8px;margin:0 1px;border-radius:6px;background:var(--accent-bg);border:1px solid var(--accent-line);color:var(--accent-dk);font-size:12.5px;font-weight:600;white-space:nowrap;line-height:1.6;vertical-align:baseline}
+.cite:hover{background:#dce9f6;border-color:#a9c4df}
+.context-line{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.context-line .gov{display:inline-flex;align-items:center;gap:6px;padding:2px 10px;border-radius:999px;background:#f1f4f7;border:1px solid var(--line);color:var(--ink-2);font-weight:600}
+.linkish{background:none;border:none;padding:0;color:var(--accent-dk);text-decoration:underline;font-weight:600;font-size:13px}
+.callout{display:flex;gap:12px;padding:14px 16px;border-radius:12px;background:var(--gold-bg);border:1px solid var(--gold-line);font-size:14px;line-height:1.55;color:#3d3110}
+.callout.legal{background:#f4f7fa;border-color:var(--line-2);color:var(--ink-2)}
+.suggest{display:flex;flex-wrap:wrap;gap:8px}
+.chip-btn{min-height:38px;padding:0 14px;border-radius:999px;border:1px solid var(--accent-line);background:#fff;color:var(--accent-dk);font-size:14px;font-weight:600}
+.chip-btn:hover{background:var(--accent-bg)}
+.tools{display:flex;gap:2px;margin-top:-4px}
+.icon-btn{width:36px;height:36px;border-radius:8px;border:none;background:transparent;color:var(--muted);display:flex;align-items:center;justify-content:center}
+.icon-btn:hover{background:#f1f4f7;color:var(--ink)}
+.icon-btn.on{color:var(--accent-dk);background:var(--accent-bg)}
+.typing{display:flex;gap:5px;padding:10px 0}
+.typing span{width:7px;height:7px;border-radius:50%;background:#9fb1c4;animation:blink 1.2s infinite}
+.typing span:nth-child(2){animation-delay:.2s}.typing span:nth-child(3){animation-delay:.4s}
+@keyframes blink{0%,80%,100%{opacity:.25}40%{opacity:1}}
+.thinking-label{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px}
+
+/* checklist */
+.checklist{display:flex;flex-direction:column;border:1px solid var(--line-2);border-radius:12px;overflow:hidden}
+.check-row{display:flex;gap:12px;padding:12px 14px;border-top:1px solid var(--line);align-items:flex-start;font-size:14px;line-height:1.5}
+.check-row:first-child{border-top:none}
+.status{flex:none;display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:700;min-width:84px;justify-content:center}
+.status.ok{background:var(--ok-bg);color:var(--ok)}
+.status.warn{background:var(--warn-bg);color:var(--warn)}
+.status.bad{background:var(--bad-bg);color:var(--bad)}
+.status.todo{background:#f1f4f7;color:var(--ink-2)}
+
+/* doc card */
+.doc-card{border:1px solid var(--line-2);border-radius:14px;overflow:hidden;display:flex;flex-wrap:wrap;background:#fff}
+.doc-thumb{flex:0 0 160px;background:#f1f4f7;padding:16px;display:flex;justify-content:center;align-items:center}
+.page-mini{width:112px;height:144px;background:#fff;border-radius:3px;box-shadow:0 1px 4px rgba(22,50,79,.18);padding:11px 10px;display:flex;flex-direction:column;gap:5px}
+.page-mini i{display:block;height:4px;border-radius:2px;background:#e3e7ec}
+.doc-info{flex:1 1 280px;padding:16px 18px;display:flex;flex-direction:column;gap:9px}
+.doc-meta{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.badge{display:inline-flex;padding:2px 8px;border-radius:6px;background:#e4effa;color:#1f4f80;font-size:12px;font-weight:700}
+.doc-title{margin:0;font-size:17px;font-weight:700;line-height:1.35}
+.doc-info ul{margin:0;padding-left:18px;font-size:14px;color:var(--ink-2);line-height:1.6}
+.doc-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+
+/* inline form */
+.form-card{border:1px solid var(--line-2);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:14px;background:#fbfcfd}
+.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field.full{grid-column:1/-1}
+.field label{font-size:13px;font-weight:600;color:var(--ink-2)}
+.field .hint{font-size:12px;color:var(--muted)}
+.input,.select{min-height:42px;padding:0 12px;border-radius:8px;border:1px solid #c4ced8;background:#fff;font-size:14.5px;width:100%}
+.input:focus,.select:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px rgba(58,106,154,.18)}
+.form-foot{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.form-foot .hint{font-size:12.5px;color:var(--muted)}
+
+/* welcome */
+.welcome{max-width:780px;margin:0 auto;padding:6vh 0 20px;display:flex;flex-direction:column;gap:26px}
+.welcome-head{display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px}
+.welcome-mark{width:64px;height:64px}
+.welcome h2{margin:8px 0 0;font-size:31px;font-weight:700;letter-spacing:-.4px;line-height:1.2}
+.welcome p{margin:0;font-size:16px;color:var(--muted);max-width:580px;line-height:1.55}
+.starters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.starter{display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:16px;border-radius:14px;border:1px solid #e0e5eb;background:#f9fbfd;text-align:left;min-height:88px}
+.starter:hover{border-color:var(--accent-line);background:var(--accent-bg)}
+.starter-kicker{font-size:11.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--accent-dk)}
+.starter-kicker.doc{color:var(--warn)}
+.starter-text{font-size:15px;line-height:1.45}
+
+/* composer */
+.composer-wrap{padding:10px 20px 16px;background:#fff}
+.composer{max-width:800px;margin:0 auto;display:flex;flex-direction:column;gap:8px}
+.composer-box{border:1px solid #c4ced8;border-radius:16px;padding:10px 10px 10px 16px;display:flex;flex-direction:column;gap:8px;background:#fff;box-shadow:0 2px 12px rgba(22,50,79,.06)}
+.composer-box:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px rgba(58,106,154,.14)}
+.composer textarea{border:none;outline:none;resize:none;font-size:15px;line-height:1.5;background:transparent;min-height:26px;max-height:180px}
+.composer-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.composer-tools{display:flex;gap:6px;flex-wrap:wrap}
+.tool-btn{min-height:38px;padding:0 12px;border-radius:10px;border:1px solid var(--line-2);background:#fff;color:var(--ink-2);font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:7px}
+.tool-btn.icon{width:38px;padding:0;justify-content:center}
+.tool-btn:hover{background:#f3f6f9}
+.send{width:40px;height:40px;border-radius:10px;border:none;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center}
+.send:disabled{background:#b9c7d6;cursor:not-allowed}
+.disclaimer{margin:0;text-align:center;font-size:12px;color:var(--muted)}
+
+/* slide-over panel */
+.scrim{position:fixed;inset:0;background:rgba(14,30,48,.38);opacity:0;pointer-events:none;transition:opacity .2s;z-index:40}
+.scrim.show{opacity:1;pointer-events:auto}
+.panel{position:fixed;top:0;right:0;bottom:0;width:min(460px,100%);background:#fff;z-index:50;transform:translateX(100%);transition:transform .25s ease,visibility .25s;display:flex;flex-direction:column;visibility:hidden}
+.panel.show{transform:none;visibility:visible;box-shadow:-8px 0 30px rgba(14,30,48,.18)}
+.panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:18px 20px;border-bottom:1px solid var(--line)}
+.panel-kicker{font-size:11.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--accent-dk)}
+.panel-title{margin:4px 0 0;font-size:18px;line-height:1.3}
+.panel-body{padding:18px 20px;overflow-y:auto;font-size:14.5px;line-height:1.65;color:var(--ink-2)}
+.panel-body p{margin:0 0 12px}
+.panel-body ol{margin:0 0 12px;padding-left:22px}
+.panel-body li{margin-bottom:6px}
+.panel-body mark{background:#fdeeb5;color:inherit;padding:0 2px;border-radius:2px}
+.panel-source{margin-top:6px;padding-top:14px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted)}
+
+/* modal */
+.modal{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;padding:20px}
+.modal.show{display:flex}
+.modal > .scrim{z-index:0}
+.modal > .modal-card{z-index:1}
+.modal-card{position:relative;background:#fff;border-radius:16px;width:min(560px,100%);max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(14,30,48,.3);animation:rise .25s ease both}
+.modal-card.wide{width:min(860px,100%)}
+.modal-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line)}
+.modal-head h2{margin:0;font-size:17px}
+.modal-body{padding:20px;overflow-y:auto}
+.modal-foot{display:flex;justify-content:flex-end;gap:8px;padding:14px 20px;border-top:1px solid var(--line)}
+.preview-pages{background:#e9edf2;padding:24px;display:flex;flex-direction:column;align-items:center;gap:20px}
+.doc-page{width:100%;max-width:640px;background:#fff;box-shadow:0 2px 10px rgba(22,50,79,.15);padding:48px 56px;font-family:Georgia,'Times New Roman',serif;font-size:14px;line-height:1.6;color:#222}
+.doc-page h1{font-size:24px;text-align:center;margin:0 0 6px}
+.doc-page h2{font-family:'Public Sans',sans-serif;font-size:13px;letter-spacing:.8px;text-transform:uppercase;margin:22px 0 8px;color:var(--navy)}
+.doc-page h3{font-family:'Public Sans',sans-serif;font-size:14px;margin:16px 0 6px}
+.doc-page p{margin:0 0 10px}
+.letterhead{text-align:center;border-bottom:2px solid var(--accent);padding-bottom:14px;margin-bottom:22px}
+.letterhead .town{font-family:'Public Sans',sans-serif;font-weight:700;font-size:18px;color:var(--navy)}
+.letterhead .sm{font-family:'Public Sans',sans-serif;font-size:12px;color:var(--muted)}
+.filled{background:#e9f3e3;border-radius:2px;padding:0 2px}
+.blank{background:#fdeeb5;border-radius:2px;padding:0 3px}
+
+/* toast */
+.toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);background:var(--navy);color:#fff;padding:12px 18px;border-radius:10px;font-size:14px;box-shadow:0 8px 24px rgba(14,30,48,.3);opacity:0;pointer-events:none;transition:all .25s;z-index:80;max-width:min(520px,90vw);text-align:center}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* responsive */
+@media (max-width:900px){
+  .sidebar{position:fixed;inset:0 auto 0 0;z-index:45;transform:translateX(-100%);transition:transform .25s ease,visibility .25s;visibility:hidden}
+  .sidebar.open{transform:none;visibility:visible;box-shadow:8px 0 30px rgba(14,30,48,.25)}
+  .menu-btn{display:inline-flex}
+  .topbar{padding:10px 14px}
+  .topbar-left{flex:1}
+  .gov-control{order:3;width:100%;justify-content:space-between}
+  .gov-control label{flex:none}
+  .gov-select{flex:1 1 0;min-width:0;width:100%}
+  .hide-sm{display:none!important}
+  .thread{padding:20px 14px 8px}
+  .composer-wrap{padding:8px 12px 12px}
+  .starters,.form-grid{grid-template-columns:1fr}
+  .welcome h2{font-size:25px}
+  .bubble{max-width:92%}
+  .doc-page{padding:28px 24px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+/* ---- live app ---- */
+.ai-answer{display:flex;flex-direction:column;gap:10px}
+.ai-answer:empty{display:none}
+.ai-answer p{margin:0}
+.ai-answer ul,.ai-answer ol{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:6px}
+.ai-answer h4{margin:6px 0 0;font-size:15px}
+.ai-answer code{font-size:13px;background:#f1f4f7;padding:1px 5px;border-radius:4px}
+.caret{display:inline-block;width:8px;height:16px;background:var(--accent);border-radius:2px;vertical-align:-2px;margin-left:2px;animation:blink 1s infinite}
+.thinking-label.quiet{display:none}
+.callout.error{background:var(--bad-bg);border-color:#f0c4c0;color:#5c1d18}
+.note-muted{font-size:13px;color:var(--muted);margin:0}
+.side-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.side-empty{margin:0;padding:4px 10px;font-size:12.5px;line-height:1.45;color:#a9bccf}
+.offline{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:12px;background:var(--gold-bg);border:1px solid var(--gold-line);font-size:14px;color:#3d3110;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ===== SIDEBAR ===== -->
+  <nav class="sidebar" id="sidebar" aria-label="Conversations and templates">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true" data-pip-icon="dark"></div>
+      <div><div class="brand-name" data-bot-name>Pip</div><div class="brand-sub">OMAG's HR assistant</div></div>
+    </div>
+
+    <button class="new-btn" type="button" data-action="new">
+      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      New conversation
+    </button>
+
+    <div class="side-group">
+      <span class="side-label">Recent</span>
+      <div id="recent-list"></div>
+    </div>
+
+    <div class="side-group">
+      <span class="side-label">Document templates</span>
+      <button type="button" class="side-item" data-template="handbook">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>
+        Personnel policies handbook</button>
+      <button type="button" class="side-item" data-template="fmla_policy">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>
+        FMLA leave policy</button>
+      <button type="button" class="side-item" data-template="receipt">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>
+        Policy acknowledgment receipt</button>
+    </div>
+
+    <div class="side-logo">
+      <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeAAAABpCAYAAADiHPAxAAAui0lEQVR42u2dd7ikVZXuf+ur6kBGMpJpYgNNzmBiQEDQEfAOAhJNjAFhHBFxHB294pgxXRzFQYTRbkRyUgGhkSggMCAIAtJNJ3ITmu5TVev+sdfm7P666pyqOhX2V2fv56mnU3Wdr3ZY7wrvercQ+VBVAQTIABWRap33TADWBTYCNrHXBvZ3awKrAisDywGTgAn2eQA1oAIsBl4HFgIvAc8Ac4FZwJPAE8DfgadFZHGdZyjZcypQExEljTTSSGNAhqpm3m6KSKXBe1YF1gc2NHu8kf15bWANYBVgRWAyMLGOLR4yO/wa8CLwHDAPmG12+HGzw7NE5IUGz1D2nycitZjnVCIG3cyt89ILbWC7GbAdsKP9upmB7cpdfrRXDZQfB/4X+DNwH/CoiCyqswmiB2NVFRFRVX0bMAWoxrov7LkqwEUissg/ey8NkIjUVHUn23uVwHhEtaz2XHNE5Npez9MY5nV7YJeI5zU/akAZuF1EHvTfY0BBt5rfQ6r6ZmAbYHuzw1sa8K5hwNqtUQGeBZ4CHgbuNzv8kIjMqYMlpVhtscS42HVAdyqwL/A2YFdg0xGevWaTHX4/afI7a4NfZRSDMAu4G7jJXg+E38GiY+pF7xEB8APAtgWxCweKyHWqWurlnAZAcRPwlgLM01xgQxGpxAzCwbzeaee7aOMWEdl3UAB4BDu8AbCH2eE9gK2A5UewpbU6dldasMP+9+GfsxH+76vAI8AdwM3AHSLyRMyBkUQU7b4xIRbl7gEcAhxg3lUp91+rNpGSe3U7sghfUue5AP4CXA9caYfz1dwGqMaw+AH4rgw8CqwWfK8YR8Uijh+KyKdUtdwoFdbFuVoTeMwMT6xz5Z9rCbCViMyKFRy8E2XR791mtGPdfyPN9Q5FjoIDO6zh89u6HAQcCOyMSx/nA55aHXDslS0Of3Y+SFpk0fHvgeuAu0Tk9Zwt7muaWvq84KVcpLgz8D7gPeZd5Y1vuMgSWSrKb4hy7t+eNCCeISIzc1Gx9nPxc6m/e2MuSwTznAEPAdN66cV6sFfVw4FfmwNYKsBc7S8iv+91tqCNef02cGrgZBVl+Of9loh8updOYRft8BbAYfbaJWcTqkGJIzY7HIJyveDob8C1wCXATBFZEkT80o+oWPqU3hBvDFR1FeBw4DiWTuupLXaMC92M8avV8cruBs4HpovI/H4DcWD8jgR+WQBQCQ/ZDiLyQK8ijiBSOxc4weaqXABgOFVEvhsjMARZhRWAvwJvjjwDM1IEPBfYHEceInYSZh54VXUS8C7b2/vjyKrhXpJR0r+xro0Pjkq5Z38YuNhs8QP9ylBmvVxwM2I1M2Qbqup/WIrg3AB8K4EHUy7govt59c/uWdZqKZyzgQdU9buqupWIVC0KLZlz0o8xrU7tJdbhnbL9e7WHDSiqZqT2a4ITENPYPuJn887ewQa+1QKedbHnXhc41Ax3KWbgNWdMzfleXVVPw2XALsaV/SYFdhizZaWCrk3Jnl8CW1zDZVjPBO5V1WtU9QhVnSQiFXMKy+akFB+ADXjVjNjGqvodA95/w7HmqvYiAK5BGVluA1RxrVGn2OL/TFW3DYC4JwufA9ztCpB+zmdtDgqyDb06Jzvi2iq0AHvUz9M2geMSY6YI4KSCOH+jnaUP93BPjsUOV1R1TVX9gtnhbwFbB3ZYB9AONwqMSrj69kVmj09R1TcFQFzqpj2WHqSb1b7IGsBpwD/jesEIJkAYX0NzKczFwH8D/ykiT4Ypzx6k/0o40tjmQdq8CCm/V4DNRGR+txm+Qar+i8C/F6RO6efpeWCKiLwYExM64B9sBjzIcNuKFPhM14BpIvJQTGQsn1mz+V4O+JjZ4nUDO5wNIOC2sm5hRmY28CPgxyLyfDftcdblNEfN/nwyrmf2DAPfSuBlyThcdJ9e90A8CfioeWBnqupyli3opvflP/fNloUoUgRcxbEx35I7OHQx7Y15ykWaJ8Ux2zeN8Lm97TkGJ8hQLbgt8PyJE3td3mvCeawZ+B4O/An4hoFvZYCj3VbT1KUgQ7k+8FXgzxYRTzJ7nHW6TJh1ybP1aY7dcf1YPwLWS8DbcPHV5mZV4CvAnap6oKWlfZTaLQDe3ByAIrV/eCLWwT2K1FRVNwZ2iMm4tuA4bBMZKAhQVdWJBsAMAAD453+/qq7ge6/7XOvN7DmmqOpvcOz9qckOj7iGoT3eAPgucJeqvidwZEpRArD3tlR1gqp+GbgF2CdXV0gLPnJEXMEJYlyjqueo6irmfZW7BMDbxly3GmHfCvAOT5zoorHL7LP3C8gpRdvD04iTfPUOnPpabUAAuIrLKB3ao8zMaLXemqp+xKLe99rz1ZIdbtkebwdcqqoXqeomQTQsUQBwwHCuqOp2wEzg87YBq+O0zjuWhfdtTB+xaPitNrdZF4BmGsU0djVc6nznLkdQanXTgwq6nwhIdrE4WX5OT6qjmMQA1BQ/1K/5tiCoaiSri4BzcJk1b4fHa6q5E/b4COBPqvpBi4bHnJ3MOnVZgi368cCtwO5BpFBK69jWumQ2h1sAN6jq6cGiZ11ITxbNQfLG7Z3dev6g/Whleldv7gYAb6mqEy0ikgjIV1VVXQ9XQhgkG+G/x1tVdarNd9aHvv69gdsNMCpBH2waY7PHVRyn4ieqOl1VVx9rdjLrRH3M/VbPxjF5VyyASEFRRjmozX5NVX+lqiuOtQ4RMKBXwqUAi1iDkxwxqtrFut4euNaxoskk+mddD0csicHR8nN6JE7OszJg2TEfaZ7Qyz71IAN5EnAjjnhXSenmjjtYPi39f4DbVXUPm/dyTwHYi2qYktVVwCeTt9VVg1UB/gm4UVU3HKPn5Q/kJribS7SgYicAO1hdRrsQbfSj57gbjPEJDEu79nudq7ZOxw0I+arRvjyqF2SsXAbyK8BPA8c9BUHdS0tXcLfw/UFVP9AuCGdjlOVb37ytg3D3OCZvq/uLvgswU1WnjcHz8uu+dSAQUsQ5qeBaWPYLxOQ7DRYl3IUgRQWLaMRWPDkI2MuepzagANwTMlYAvjVV/TFO2akyoI4NkWYnJwHnq+oZZo9bah3NxgC+U4A/MHwv6oS0Jj1Z9AqOfHTDWNMfgVEuugrRQb4U0un2I3NStiqI+hVNSFLGsNYnFjSjEA0ZKwe+v8CpcKUgqPfOltdy+KqqnmViHaWuAHAOfK/H1Q8rKdXRcxCuAqsD17YJwkWUoGQE0stbVHVl25vS4VTiAUFUU+SU6NY2N7U+XrxQVdXVgX8sIKGt3X3ZcTKWz/bY556P66UeSkEQ/crEecLsZ1X1a63Y46xN9uJvcZq4iWzVvwNexamKXa2q2/v0RwuGsBRRXXAsm7+Gq2Pv2eHUWy1X/y3yHIEj5axutXLpIygdBrxpAJSvaIKMVaY7ZCwfCP0A+EAC36hKhKer6mebBeGsFU1na8e4KmDYJbJV/0H4TQbCG/sG8SYN8roUS4JytLuYOwaU5qTUVHUtHAO6yDU1L0m5Mo400q/v4h2aExhf5MmOkrGCVqMzcJrOCXzjsskV4CxVPbIZEM6arTXYH2fgakkp7RwXCL8ZuExVVwzWrBkJyskFbK1ppIp1gEX11U72czLcVld0nWLoU8930DGxA04jYDx0SoRkrEM6kXIPWo0Ox2kVJzscp7RwDfiZqm7nBZTGEgH7WyC+gxM9GEqLHqXXNQ34hV2AURpQCcqRiBBbAlM73I50cKA7PQhj+z6nwY8veD29b9cUBiXArYDz7LOSwmC8GaflgP9R1cmANAqKsiY9rqNw99cmtjPRErOGgH9U1TObrD9MY7DqbVkn2oUs/VxR1Uk4rWIZgJaOvjldwXyuiOtjH08tMh0hY/kspF1e8UtcVkYT+EYfFG0LfMUC2KwlAA48rs1weqK1VPMtRIvSl1V1nxFIWT76mDoA9d9uCGb4M7ETrkZeGyAA3sKuuuylJKXfg+8C1gmcpfEyPBnr+DE4Hz4LeRbuRq7EvykOCH/SSLLVevY4G8XjEpy85ErJ4yoMHV6A8yziWIrxGkhQrkh/CTl0ifCyu6quPUaAyUtc1gbIQVkH173QS8fLz99JA5TKb2dvHt0OGSvIQu4DnJbAlyKUHMJbpyYA/62qE+rt/0bGNzOP6xTcdYJp0Ytz2Cu4/uyzrB6cNZCgXHPAIuAqLjU31ksTqjkAHqT5CVvPsh5dvFBT1S2Atw1472/HyVgeqC31fE6OdJhGfKBbDYhYJWAhcKWtXWb2eGQAthpFTVU3Ar6cUs+FZUZ/TFV3z6U+8hKU1QE7BIojTrWl+OTVr1R1E1yqb5DqldqH2r+fuw9YJFBlfBvpVpWxfCD0SRyDvZIkJqMH3ReBy3DtdlNF5FAR+S8RWUyDuuEy3rJ5rV8PWjDSohcv3SjA2aq6Vx0wGhQJynrtSO9Q1Ukistin3Fv5DFVVYD+cxvQgtnlM68XaW/RWNTLb0eNcn9jfouOvKXzIZwdG0V6oqeraOI3nQQ6EdAQ7Fttz1oI19evxHO5OhMuA34vIvNw6ijlSI5OwAqnJvXDXLVVT9FvoKHh34J/MoSoPkARlo71cwxGndm7T4PuL4g9mcGuRW3uCZY9+3n64kkdtnDvyrZKxvPN4OrDqAPTr5yPHir3898q/asF7qn0MFjT3nB54FwC/wl2rOVVE3iciF4jIPFXNVLXsBX1GOmvSoGZzI65mkwCYQitECfCYAe5QcI/wg7i+2UEzij5i/bKIfMGrBrV4R/LKwN8o7jWNIxkSAV4DNhORuaNFYR0Qjaiq6sXAe5Ns7RtnbQ6whYi82ihD45UHcXXjR3D3JhfZYc5HjvXG4oBrNLGBXfIp+KwHa1Wr87Pm4e5AuBS4UUSeC/e7/7+tZN3KdQ7M2wx8BynloblXI2ckfA0K+WNz4P0ich7DTNgNBzACDr/PO4EvtFhz9PO1p4HvoDknPqpY3vbE3G6tf9DCuD6uNUySI78MGWt60KpSr/ZbUdVPACsUvBRSzaVrFwL3AncB/ws8CTwDvByUO1fAkUQ3xXEx9sS1BU7M9f1LF0HXn/2ngd/h0ss3icgLDUC32m7vaD4Pf/qA1AdrubSBdMADKqoqy6dV9X9EZIkZ3+UG+C5WgB1UdRMReaKFKE9y6leDOD/+O20L3NxFB8yXA95vey1JJi5Lxppej4wVCJesiru2saiynbWcNON1OBGR60VkThP//xHgFuB8m5fNcbdonYAjkdKBDG0j0H0Kd+HQpcBMEVnYSdBdBoCD1PN2wP4F12qtBc/vJ/Q187SeAGbjiuav2r8tB6wGrIerVW2C63vO6nxeUeui2wAHquoVDMsRDiLAiBn7icB+qnpuMAejeup2uPYfEPUr+ihJ6efy2IgyLZUIIvGQjLW1iPyljoPoo+IjLAosovMSAuOFwLdF5J5cij3LZSfJlXzCTGRVRB4FvqGq38Ox6r8AbNAGCNeC7G74HE+Yk3AZcIuIvNIt0K0XAXsj9cFgA5QLCLzkvJirbVLvFpFZTabP1jUDdYBFQ1vmNkpWUE/0ZBG53Jys8TAOFpGfGqu52X7VqbbeOqAALLlLGapdrP3ubZF2LKWscoTXFH6mjoPof39iATkIGqz33cBpInJzyAY2EKuN4BTrCKzwzNp5fqqql+HuJzi6iZR0I9B9DLjWQPdWEXmtF6C71IHMqSM9iqsRFi06Cr2gW4EfAFeEXkwwqTICA7aae/9EXD3xnwNhhqIR0/whXgJsDFyA0zgeVIKd/77PAlNEZOFo7UjBFW//AnxzgFOmfm4W2Ny80karVrMAfB5wXCRz6WUcN8OxVvtp3/zPfhrYMiRjBY7gtsB9BeOjhAHK2cDp1gpYMtta62B7W8mTK+1axq/WAeFagwsrHgGuMdC9LezPbZdINVav0Ee8BwRaraUCelx/A84Ukel1JlTrAewIC+x7t5YAVwBXqOo7baF3ylHni6KCNBH4CO4e4EHuyfRkozWAvczDHe0GnlpOS1oGvEd8TVyp5YGAJ9CpixeqqroG8B76r3zlwe4xEfk3Vd0Y114pEZCx1sPpY88IbLCPhg8LVO3KBQPfk0XkHFUV74x1dAM7YKwEEfFZqroY+BbuQhqxOQsj3Qdx2dArgNtFZCh0vj2O9KA1r+FVbgDvo1hXr2lQmz0X2EVEpvuF98bAXk17NCKi9n8qwWdlInIdjo33tcDTqhWMnPRxi4IZcDk7X7cfFVB9r54JHuw+DgQjvHLP1l34rh5sD8f1rvb7HmV/Pm81Q7sAxwWJ4ezWu6bQA8ChBTqjIWHxGAPfstnS7qVuXURdVdUJIvJtXNZzQuCwPGC2ei9gexH5jIjMFJEh69H1GFExe98X3Cubx7oiw1evlQrmcX1SRL4fphI7VduyRakG0fSQiJyhqvcCP2f4QvusIJHP6jBuWj4E2N/WrdrErSVvZVj5rTTgLFyM5zCjS4B3QmTf+WazCxVVvRPX3tLPc1uPjOXLIFMCklxWIIGRj4nIhQaIQz0xai5t76Ph0xjum74Ex/upNYh0K7FFRrsCaxVEbSXvcX0/UB2pdHGxPRBPEJEZlj56rZMpvD5Jvg0qACuOUDXV19dGmZODx8kcSTfkSC3dWFPVnYDdIukcKBtA3BGCcYRkrJAktq9FcpUC2GL/Hf6fiPyol+Cby1jWRGRIRA4Xkc+JyF1e/S+WSHc0AH5rga5e8xHKyYHHVenFxNpiD9nPvIHhC8ZrBTHcMs6k/zIct6HRxSO+ZjnZMkDjQa/Y74GtAsKUdPBzj4/koo9a0F7yaPAdb4vEOfD77ChVXQFHkgxtMQUo83hVvVMt09S3yNLKhV4CMosZdOtR8/cqiIEOPa5z+uFxGRB7EL5SVT8L/GeS7YwWaA7CETRqIxBidsb1FNbGEQBviCMCPTXWLE4gHrESjuREBGfBr+Ud9mxlA4iHcVoA/V7vpchYIjLDnnGXAjmCCnzUs53bATpfL+6Gc9NEB2L/AdgOzTYFWHR/WB4BTuu3x2X1pLKIfF1VDyJpZxMp8Wx3VV1bRObXabmR3N2/4wWAa8AkYIsAgBljTbOCk1hcO7JzMDOXJn9dVe+KyOFSXHfCDFwNc0oBgiHPzp4uIre0orleJ5ipjGcjVbZDuE5BImABPmWHqNTP1ILVFTVgF98bkCvShdnxtF+tiEvrzaijvVsNtKPHU4o+lKT8fQe+t88unBRRKcafxdvqOFczca0+MV1TuL4BcBFkYku4lp8vWWq/1kbGRO2qytPtjI5Lu1kGpgb9Z1nkdd8bReTabvSXtUvMsmd5UFUvxNW/ku4t0bHlDzYA1jrqV5tSLNYpMUlSBvO4ZVC/jCX9/HdcyjkveXhrJM8ZltWOBh4vQCbG27drjL09Fls8Cfg8jnQ2biPgqQVif37LPK6oPCV7pm/jNEpTCro1ARV60I70dlWdbJkTn4bOLIOxH06kpBeOk0YizdhJSUrvvB9r8xeDA+oB7E4RWRKQzWqBMMNcnChNv8HO/+yjg2g95kjQP9tPOmCLFXcT0lrjNAJeUma45kDkbLsncNdCEQHDMh8FZyLygKreDuydasFNHeJSD9uRNsQpmN0akF/U0mAHD+D3btboT1HVVUXkxXYkKc0Aexb5URFmEWaGoGHrXTL5x7txNWuNZC22wamTEbHt8OzxucANNp/VDgSB5fEKwBmOjBCz1+W91qtMGrIUIa3cH6LfjLN+23b7kJ8HrqJ3KT4YJlpJ0H60Cq7vsldG7zXgxoiuqVwNJ0rR7vn3c7Y/TmGtGgkAl3Kp5nrEu5mRndUMVwsl8i4UDHxf6zcPZwDsYCWz8D9mAPbP9fsC3MT0h8g92Fjm6a8icggwqwf955IjWoXZib1w6mDdFqB5w3DhJF9jEEap5tLQ7QCnmgE+MSIZW7+WTwMP1dlf+TpwloRyWh43jkNdgW6MSgasErmn4Bl3D0QsFuIPzl+B+QVTx+rHWGzpy+uCumi3sxM7qOomvv7LcI+w9mBPaZAhWWiRcCxj2hjIV1VV3SBwbkoRncU/iciiOlGaX+v7cTdmZRGd1dgBza/vPQUSbop5DGXA8hEvvj8Y88yjjdJLtFqI2PWHT6bNOXoK2oziZbbvsi4btQqOaPUPuQvj9+/Bz1dcjes1HHN0yAx/v/dyXpKy1q6SE651phqJDdF69d/cWc1EZGECkrausnwhsHEpyGDsNeCJBTDYC0xtRSKuOXiDNDdtzlHHgsBIzu9hFHJQoOu9La4HXrsMwF6m9A8iMs/+7pmIoq0tVXWitRK1AqDeiTk2slTuSPXf/Fm9JZ3Vlm3xXODFNB0dGa9nBalXvlwgev5LaV+NOp41IHwJx2zXLjPb/R7fV1VXM6B5ZxP3BHdyb0yv44DEEAGvB6zfyvkK7tneF9fGGEvfqo/SFjByyUpzAJylI9k0AD8TZBGS4zK2uVyUFcT7K5JcWSXtr+YA2MYlZjS76Vx5tZ41gN3NcLyrB06d5zAsBK4OIsx5kQBwFSeCsFWrcxGQr2JK4frnuFtEXhkBJPz7/mzRXJai4KbHwkTA6th4NSsIYEwu0KROTvtq1PFM0Ed6I66uVOqyEfRG952qugbuyrxuRz9V+06/E5FnGS73zInME9+uWaMatHCtCbw7MtZ/U5FtEMG9YCCc6sDNz+1QmorOOTMZsJj407qr2MGpFWCDrpY8REark/sa6AQzgjf2IA3t1Zk+ilNCmtyDdfKR/YycatBc4pSk1BbS+UfYuYzp3tpWarv+vX9MdeCWbHFqsewcVryYAa9EvAH9oq9jtzbRobtLuxlhrZcAeNT1fC6npnRpD9LQBPqza/Wwhe454LeWCq3mAFgiAaytW4gCPVnrhMj2uSfTPQ/c18T3ybOlUx24ubFSclg6Np7NcOm/mA224mp3G8UKbMHtHmvgFIESADcmyAyZkQTwl2X/1hzBUg8Odq8EI3z6+VqTeiwFgDA/EqPv9+imqrqGb6cbiXxlWaidcffWakQRkZ/be0XkpSZIQm+8H0fyTHXg5vbKmgXIRhZlLMiIgxAymiETYBczDjF6qllQS1u5B8pKFJzE8UIQTWUiMp/htGGtB4akF2vjf870IP2sQQq+FoFgi//5KwObNeEU+Hk7ISBxUaT6b5068ILIRX5iA+D1VHXVyLORRRlzM9yF3EVIKRxoHm3MqfID0kEe1UA+FzApsVuJfBp6UFJbPjKch7tCU4OIGMsAvByZvu82I2VuLMtTUdWVcfVfIqsHttPbm+rAvdcPT2N43z2dAY9SDPmzA1R1taAGFdNVhFVVLTN8yXeqJzUG4Pkm+uBThDX79RrgdYZvRiny8GB7lbXD5OUQXwqyAFqQu4H9OXw3roZejbD++xIupdysE5yPmhOgNOes7RZxNrIozkwFmJ0xLFgukT/sm4AjzZBF5XnbM+2PU1aqpY05orGbk7sizoPxU8AdA5JByOqIb4SSpbHIUYbnfttR5t7//YkROkhv6DuLyHMtiES8oRuNkwotpSi4uYtNIs5GFsUOvgDMyYC/AEsiJyH4ZztNVSfFFgXb+FxKYzU1Ztdx+LzDctkAzKF3wGYxzLCt1fmuCyIzqluo6nL1JCkN0GqqujW9vb6xK/XfwCGqmUM0p8HNSWnUT52+XVVXt37wlDVoPxB5LsNddB97HTizgzEFOMUYeKUI0s9l24TvA/Zh6avu0hgZgOve+WzZjtIAXLl4mYi8bnuk3n20sZAfvVFdh8adBv49x+JKBNVIgaEdbedmtKPTWFo9bRWGy23J3rUHwI+JiGYishh3NVfsm8+D8L+r6lZGCCn1EXwzq/2uAZydmM9NR1qzR4hE/oq7oUYiNPKtgsGMUc7UHOKq7ZWoI0kZcBwm424+ivEO3QxYBNxnXIySqpabeQH+19tSHbil8XGzgSlj0B4A31+0W0H8wVge+JWqLu/bWPpEvPI3M/0CWLcHt+owIOmrOQ32mnemLi9wJOLTz48Bt9s+aWSg5kZoFKbVAaFSwPDf0MA6izDjcLuIPC0iFRFZYr8283pdRCrAlcCrqQ7cVMaganvlCHOey4xNO78Tr2rBApF7COT5bipIOsHfXrO9RRjvsRRwya6Y61Xki/3cHwMH2gYop7M5qghHlcY3AXlDegXwHwVNbXkAvlREhiz9XBkFgGOKuKbVWRs18thJPRQxacsxV9V/tX1Ta/NzFgErpOPadEvSV1X1cmCozatiBSfsUR5HdrCEk3/+M4CYl14GHsb1dxWBxesB70ocM/pV88Kq3bwiyxtUm7P/Aj6YwLclAH4O2MyUoZY5sIFgxZ9xoiZFY5T777m7iNxZzzH0f6eqe+H6TzUCEPbz/BCwnVc5CshXG5l9mBzJ86ZBNGWLb4nIp1V1grH7W1EOnAh83JyedveVJ+hOwXEUYrYZfs7uxanJUQZK5q1fC5xcEKNXNuA7BLhJVY8TkQeDu0prnQRi+0w18F0fOBeXkkvg2zoALxzhfSWb4ysLCMAhiN3tbw0a6V7V4ED2G9T8z94YWBuYG/R51nC138mR7/dOXOaRznLr2ch/UdUbReSqZkHY22YRWQJ8u0M2+pu5cxhz/fcGc0DKYevRRXYQi2LwPBtzZ+A2VT3VNkDVfzlVzdqhyauq2P8t20apWiRwHHBXAt+2N968nAhHo/ddVkCGpU97XmzAW2qiD/DliFKKNRy/YvPQwNoZOLYAAjM+kzeWVxqtzbd30C5Q1W192aXVrOIYXpPNTu8AfMqepVQAHsxV/utnQU/tH3GqWEVitvl6z0rmSd2lqsdYP2NFRGoGxiErsmSLFr6W+ncRUfu/Ffu3d6vqzcB5uHaNajqwYxfhqOMZ+77Ce3BEJingXry4yX7S2NSwajlBDr+/34JjRyeBmTQaZU5WBa4JulMmNP0BzZPllnpZRvJ13O1mPwuAVyLPkD0VMO5rPhIpWerg/AI2o2dB+ml7HCv5flX9qqruoaqTLYL1i1c1cA1fS/27AfEOqnqmgcFlOAGCamQ3wDAAIhz10tBDgZdYK0g9THDX4N1v6efaCJcAxKaGRT1JSrMNJyaBijSaSEWvD9yoqvtYJFzqRoeKZSe9/sLy5vDuGCE7v5GDe0moD1DO/ePPgTOA5QpGtpAgAlHczS5n2OsJVb3XjONjwNMWfSxi+H7YlXGtRJvhmKA7AlvmJi8Bb3dEOBpFy5cCpxQk6vLP/Gtf/sCVKEYzWgsijGa2MfBdrKprA4cmwYU0msz+rANcr6qfFpHvB/wZxtqlYmCeWfRbMVW284DdCiKA5LkePw8xtxwIIZREZJaqzgCOL2iNMwu+nK8HbGKvwxoYTRmFbZ2l1Fv3RDhG6uvEyTluUID0Z8n2ym+ajBYl14qkEZ2dze26uZeA95lzmvgOaTQrlDQR+J6qHgJ8XkTuCuu9ttdHJckGJECx99esXLoS8DGc9O9KBQFfH53PFJF7fXdBnlThL+P+ZgA8Rd4M5aCGWA2atWt17oUN31MJ3lNO4NsTEY58irZs9Z1r/YEtQPr5LhF5ODxcTYy5kV64vmEu/ZzajtJotRx4AI4ce6Gq7hvUe99oFa3Hvwl0FjQoDdZUdYqqfg6XyTzLwLdWoMyMMMz4zpah3QdR8IOqOh04ekA832yUtGG6VouetCBVaCzCMVIa+kORr0/YRUCLJMY5xNmnuL6qLsKVYmop/ZxGG+VAv5eOAo6yMuDVwA3AQyIybyRHVVXXwpUB98TdNLc3rjQaRpRZQfghGU7b4Epz0CuN+t58FPxF4HBLJwxq433y6ns7XsT1ATcDwP5gzjTQXivSfeh5AUvMWWj1Htp5ke1F/1xbAXsVoK8yDaKvefr9s6O9zgQWquosfyMQTgIUnCDH6sCbgfVw7GrqlARLBcSaf/OqjTRqPA+i4MdU9Wzg9FT/SaNHIhz5NHRJRF5W1d+ZFx1j65ePDm8VkSdaTD8DzI+sv9Y/x+E4UmIiX6XRiWg45OVkOF7BNvZqRlxFgrIiBVQLu15EfPRbHS096y84+L+4nqVSakFIowciHMscXsvGXJqr18f43Wa0CKR5NSyJjIi1F464mDJFaXSal5MFkXG1waUKtcBxLxsGSUHt3hBwSiNBqKyBTJiIyMs4tpkkAE6jgyIczYKUJ2vcgEtfx3ZLjZpxWIS7QKKVXtkY1bDyz5duBEqj2ypapTpqZKWA/cwAaGV/xWSS62bHshEUicoiciVOZWS0vsY00qADPcD10tDPAzcGm5rIGutvEpHZbaSfwbX6PB+hGEesGYc00igK+JaBO3A3RjXMIo8UjfiC8SnAI/aBKRIuRrRZeACuk4aONR06PehZbMW5EGNDPlvg+4/TSCONZR1zwfFdjglkM7UlAA5urHgFeD/wekpNFYLsRIFFOBqloX9LXJele/bzy8DV9ozVNuutC9LWTSONgbHBnmh2nJGZSyNlxrJRPHWfir4X149ZCvSQ04jP65oTYTSVtav6ZJFiJiLzgFsi0iT2Z+B6EVngL/Bo0zGZmyLgNNIYiOE7hs4QkUu9ZnU7IhVL3VZhH3QB8KVUD45uDNk6fhe4LjLh/FCEY36bQJPl0tAaUY3Up5/HknmYm7ZwGmkMhB2eAPxQRL5mmFlpVyWqEQh/Efix/aChNOfRLPpVInIq7m7kGGulrYhwLBPdW3R5DbDYHMB+grBPP78AXNdm+pmI1bDSSCON9uzw+SLyceNOVcci00gjUpaIfBS4MIFwNIv+B+BwVV0Dd5tTjMpKz9Jmu03QO/x34M4IInyffr5ORF5oM/0czs3c1G+bRhqFt8MXiMhxpqFRa9YmtMTc9CIdInIMcIH94JSO7t+iXw8cIiKLcfKBy0dGxmpXhKPRPo0hDd3J9DMMk7CS3GMaaVAowlXF7PBPROQDBr7aio3LWu3NNL3oTEQ+AJyDSwkmYlbvF/0y4BBgkQHBVhH2yrYrwkGDntur7PuX+px+XmAErLGkn0M1rEpEalhE3l/Zr1dqwUwjb4/KwNdE5MPtgG9bBjEHwifjLm7wUmHVtDZdXXSvvvRj4L12ZV/Z1mQag9UDnE9Di4g8grtVpF97zTuaV5lOdbvp5yKoYRGpwH+/XlkBbUUadIXp7G88O1lEzrCar7ZjC8ptGkRVVcwAfUlVHzdQWC5d3tBVejvAv4rIN+0uTYISwLYR1xJn07lL7y8HdumTgfESeTM6+JkLcWpYbxrgm8c6NW7A9YP3Mlvgje1UYEpB1ihLN1nRjeyXV7h6GjhWRG5olu3cUQAOImHfJ/wLVX0YOB+XCq0OiJ5nTIs+FzhJRK4Jpc0sOpwMbB4hAEsHAdinfS7HtcOV+hBVZPZdbhorGSxUw1LVZwPjnkb9eZ8lIvv17SCqHgZcHPn9yH7/3ATsAUxOARGd1HUuA9cCHzL52TGBb0eIH0GL0l226OcHKelE0BrbovvbQK4GdjPwLYuIV4jyALchw9fHxeTxZrkasI41DQ08ADzUh0tC/M+6QkQW2Tpoh+Znftruo877raoqqjpRVUs9fJXN4b0FVyooRewoeUGeecA+wGOBhHCqYbfPufF3fp8hIgcZ+JbGCr4dM9YGwiUReUlEjgOOsU2QFr+9Q1QNpA4/JSLvarDoHoC3DFTKYpPGHGKY6TtWw+Vl3a7oQztSlrt6UDuYIZiX1LBGHTf4TgxzQHv18lq+C4DbIxO6qbdHFTjSnLpdcZfpZPaqpD1GK2U/HwD9EdjLBDayevf69hWAA9lKMZC4ECcKcX6w+IlJ2Jy35a/putKi3rNHWHRvwLeL2ICPRYSjUYrtsh5fFu/ToI/7SKzDezmJcYxc+68CM/sIflnAwo/ZUQrJiZ8QkRdF5CTgUOAvBiaSulYYLfOIzdVzwKnAW0Tkbst61dq49az7AOzrWgbEJRGZY9HwgcCfAiZhAuL6wOu9rUeAI0XkUBF5eJRF94doWsT1qGc7xfL1Th5wN/C3Hqah/c+4VESWWCTeSQOW5ChHTqk+BjzqSxF9TIP/NshOETkB6/2qunxwreyuuI6VhbmulQTES3c4eIfvp8BOIvLdoOun0q3FosNAHEbD1+Fqwx+2g5SAeOlUswQkq9OBnUVkehD1jrTovi66dYT1X3+w5weXKnTisJdEZCiIRmo9NGoXdTgCSmpYzQHfLZ5r0pewcph/8AjwYB/4B63u1SqwAXCgzdskEXlVRL4E7GTgMpTj6oxHIA77+P1cXALsKSIfEpGnPNejW45f1sVNG0bDVRH5CbAj8KkcENfGkSemgePhU81zzDPdXkS+LiKv+iusRlp0Y9AqsAawSYQG3K/n0x3ea/k0dNaj9PPDwJ9s3jtda5+f1LBGrJHfEMGzeP7BtZHXgcNz8mH7/ZAFRGUR+ZuIfMgi4p8zrK8u4ygoqgVZR0+quwTYV0QOE5G7jIAn3Yh6ewLAYTRsgFESkVdE5GxgB+CDlprOcimRQQNjrbPgGY7JexowTUS+JCLPGOOyWQPv124KsFLE/YmzuxQV3WafnXXZaPjP/o0dxlKX0vRJDau+6tgS4NYIQM+vyzUFcJb8Hn2Hqm5hjoNvecvMFt8nIsdbUPQ9nCJbKSByVQYMjGtBpJ+Z0/GSZQN2NeC9JeTbdLjM1B8ArpOWLls65FwR2RU4APglw7WJMC1SVDD2ka43qn7BX8cxeA8DdhSR74jIcwHwVlpYdA+22xCfBGU4ZnU6s2IGZBHu+kXtsqHwHvKvu0DACdWwFibMrTs3DwJ/t/NRiyAdficua5VFDlBVnGTt8aGtt8xaNQDiv4jIKTgi5yeAu4KyWB6MtaCgWwtssAD3A58BtrNU890B8NZ6uc+yHtdS1Lwwsd46ROR3InKUAcnHcbf7LLHJKgX1lpgBWXPPKEHjttqhPd2i3XeLyCUisqRN4M2PaZGnD5/uInP00uByhG6SgO4H7utS+plADSu1Ii0LeDfb2egr8Slw/F7DpcQ1cgD2tv1oVV3ORJMkrGvngHi+iPxARHYD9sLdL/5YDowlCCxiBORa8HwEoJsBT+HuLni7BT/fEJFZlmruOfAyViWssW5mH7EFQDwb+CHwQ1XdwiLjdwG7AavlnIWwt1iCf5MeeeXh4cuCzemf4xXzJK8DrhGR+4ParX9vbYz1Bf/ztwqAP8YIZm4XjfNNuB7j1XCkEulCL+BE4NdGxCl3UlwmUMOqquoCYOMkH7iM+tANETkmErQjHV0A7fshYH1gfxG5vN7+9aBj4FyyYOA24DZV/SywJ3AwsL9FyaUG7GHJvbptW8IXAdCG42HbP1cCM0XklcAOl4FqlxzqljdU/621A6bMJkWDv1/LQPht5plNBVYZJRLNfz9p8vtqg18ZRVrzVVvs2y2Cv90cCnIL3hEvyxOwVHUFHIFnhYiNwKYi8oT3Mju4X0oGXBcBR3T5O2wjIg91+jvkvsfvgH9IuLvMWEdE5gekw37aKH/u1ilY65hXKWyqjcuComUISKq6NbA38BYciWuzEYK4fITcii1u1w7PBu4xG3wzcF/4HXyw18p9veMGgBuA8TKAZYC8FbC9vbbGSTGuCUyi++ooz+Dqmo9gqUngQRGZkz+s5i3WumC0QwA+POK+xMXAxXZfcTf2iOJUwPYOUv+d9LIzYKGI/LoHRn0f+y7VLp/LUgFu2PFz/7yIXBqpjXo3rgOhVoD2sQow3XrYW9qbHvDqgHGG677YFkeq3RanR78+7mKRbmZxXsepxz1uHIF7zA4/YiUCYgbd6AG40SbIR8fBe1a2hd8Ql8bbyP68th2SVYEVceLkk3LpCl+7XWIL+wqOHfecRZezgb8DT+LqCLNF5IUGz1oOFjuJjaSRRhoDMcwOS0DmqjR431pmezcyW7whsB6wFrA6Lnu5vNniiQExymcvvR1+Daei94yB7VNmgx+3X2flwTaM3v3nxQi64fj/3N6b9+OULoEAAAAASUVORK5CYII=" alt="OMAG – Oklahoma Municipal Assurance Group" width="118" height="26">
+      <span>Oklahoma Municipal Assurance Group</span>
+    </div>
+  </nav>
+
+  <!-- ===== MAIN ===== -->
+  <div class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="menu-btn" type="button" data-action="menu" aria-label="Open menu">
+          <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+        <div style="min-width:0">
+          <h1 class="title" id="conv-title">New conversation</h1>
+          <div class="subtitle hide-sm">Oklahoma statutes + federal employment law</div>
+        </div>
+        <span class="demo-pill hide-sm" title="Pip is new. Answers can be wrong; check the cited sections and confirm with your attorney or OMAG.">Beta</span>
+      </div>
+      <div class="gov-control" id="gov-control">
+        <label for="gov-select"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V10M19 21V10M9 21v-6h6v6M2 10l10-7 10 7"/></svg>Form of government</label>
+        <select class="gov-select" id="gov-select"></select>
+      </div>
+      <div class="topbar-right">
+        <button class="btn primary" type="button" data-action="contact">
+          <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg>
+          <span class="hide-sm">Talk to OMAG</span><span class="sr-only">Talk to OMAG</span>
+        </button>
+      </div>
+    </header>
+
+    <div class="thread" id="thread" aria-live="polite">
+      <div class="thread-inner" id="thread-inner"></div>
+    </div>
+
+    <div class="composer-wrap">
+      <form class="composer" id="composer" autocomplete="off">
+        <div class="composer-box">
+          <label for="prompt" class="sr-only">Ask an HR question</label>
+          <textarea id="prompt" rows="1" placeholder="Ask about Oklahoma or federal employment law, or describe a document you need…"></textarea>
+          <div class="composer-row">
+            <div class="composer-tools">
+              <button type="button" class="tool-btn icon" data-action="attach" aria-label="Attach a file">
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.4 11.1-9.2 9.2a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7l-9.2 9.2a2 2 0 0 1-2.8-2.8l8.5-8.5"/></svg>
+              </button>
+              <button type="button" class="tool-btn" data-action="templates">
+                <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M12 12v6M9 15h6"/></svg>
+                Use a template
+              </button>
+            </div>
+            <button class="send" id="send" type="submit" aria-label="Send" disabled>
+              <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+            </button>
+          </div>
+        </div>
+        <p class="disclaimer">Answers are general information, not legal advice. For your specific situation, consult your municipal attorney or OMAG Legal Services.</p>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- citation panel -->
+<div class="scrim" id="scrim"></div>
+<aside class="panel" id="panel" role="dialog" aria-modal="true" aria-labelledby="panel-title">
+  <div class="panel-head">
+    <div><div class="panel-kicker" id="panel-kicker">Source</div><h2 class="panel-title" id="panel-title"></h2></div>
+    <button class="icon-btn" type="button" data-action="close-panel" aria-label="Close source">
+      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+  <div class="panel-body" id="panel-body"></div>
+</aside>
+
+<!-- modal -->
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  <div class="scrim show" data-action="close-modal" style="position:absolute"></div>
+  <div class="modal-card" id="modal-card">
+    <div class="modal-head"><h2 id="modal-title"></h2>
+      <button class="icon-btn" type="button" data-action="close-modal" aria-label="Close">
+        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-foot" id="modal-foot"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script src="config.js"></script>
+<script>
+(function(){
+'use strict';
+
+/* ============ STATE ============ */
+const FORMS = {
+  town:      {label:'Statutory Town', unit:'Town', body:'Board of Trustees', exec:'Board of Trustees', clerk:'Town Clerk'},
+  aldermanic:{label:'Aldermanic City', unit:'City', body:'City Council', exec:'Mayor', clerk:'City Clerk'},
+  cm:        {label:'Council-Manager City', unit:'City', body:'City Council', exec:'City Manager', clerk:'City Clerk'},
+  strong:    {label:'Strong-Mayor-Council City', unit:'City', body:'City Council', exec:'Mayor', clerk:'City Clerk'},
+  charter:   {label:'Charter City', unit:'City', body:'City Council', exec:'(per charter)', clerk:'City Clerk'}
+};
+/* The assistant's display name. Change it here and everywhere updates. */
+const BOT = 'Pip';
+/* Pip's icon: a gold dot (the "pip") in a chat bubble. Same artwork as assets/pip-icon.svg. */
+const PIP_ART = `<path d="M14 12h36a6 6 0 0 1 6 6v22a6 6 0 0 1-6 6H28l-10 9v-9h-4a6 6 0 0 1-6-6V18a6 6 0 0 1 6-6z" fill="#fff"/><circle cx="32" cy="29" r="7.5" fill="#d4a72c"/>`;
+const PIP_SQUARE = '<rect width="64" height="64" rx="15" fill="#16324f"/>';
+const pipIcon = (onDark) => `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" focusable="false">${onDark ? '' : PIP_SQUARE}${PIP_ART}</svg>`;
+const state = { muni:'Town of Example', form:'town', busy:false, docs:{} };
+const F = () => FORMS[state.form];
+
+/* ============ HELPERS ============ */
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const cite = (id, label) => `<button type="button" class="cite" data-cite="${id}">${label}</button>`;
+const statute = s => cite(s, `11 O.S. § ${s}`);
+const cfr = (s, label) => cite(s, label || `29 C.F.R. § ${s}`);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const thread = $('#thread'), inner = $('#thread-inner');
+function scrollDown(){ thread.scrollTop = thread.scrollHeight; }
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),3200); }
+function govLine(){
+  return `<div class="context-line">Answering for your <span class="gov">${esc(F().label)}</span><button type="button" class="linkish" data-action="gov-focus">Change</button></div>`;
+}
+const ICON = {
+  info:`<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7a5a00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-top:2px"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>`,
+  scale:`<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3c4855" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-top:2px"><path d="M12 3v18M5 21h14M6 7h12M6 7l-3 7a3 3 0 0 0 6 0zM18 7l-3 7a3 3 0 0 0 6 0z"/></svg>`,
+  file:`<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>`,
+  dl:`<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>`,
+  eye:`<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>`
+};
+const callout = html => `<div class="callout">${ICON.info}<div>${html}</div></div>`;
+const legal = (topic) => `<div class="callout legal">${ICON.scale}<div>${topic || 'Because this involves statutory authority, confirm the answer with your municipal attorney or OMAG Legal Services before acting — especially if your ordinances or personnel policy delegate this authority differently.'}</div></div>`;
+const suggest = items => `<div class="suggest">${items.map(([label,q])=>`<button type="button" class="chip-btn" data-ask="${esc(q||label)}">${esc(label)}</button>`).join('')}</div>`;
+
+/* ============ DOCUMENT TEMPLATES (client-side for now) ============ */
+const A = {};
+function docCard(id, d){
+  return `<div class="doc-card">
+    <div class="doc-thumb" aria-hidden="true"><div class="page-mini"><i style="width:46px;height:6px;background:var(--navy)"></i><i style="width:70px;height:3px;background:var(--accent-line)"></i><i style="height:2px;background:var(--accent);margin:3px 0"></i><i style="width:80%"></i><i></i><i style="width:92%"></i><i style="height:9px;background:#e9f3e3"></i><i style="width:86%"></i><i></i><i style="width:60%"></i></div></div>
+    <div class="doc-info">
+      <div class="doc-meta"><span class="badge">DOCX</span><span>Word document · ${esc(state.muni)} letterhead</span></div>
+      <h3 class="doc-title">${esc(d.title)}</h3>
+      <ul>${d.bullets.map(b=>`<li>${b}</li>`).join('')}</ul>
+      <div class="doc-actions">
+        <button type="button" class="btn primary" data-doc-preview="${id}">${ICON.eye} Preview</button>
+        <button type="button" class="btn" data-doc-download="${id}">${ICON.dl} Download Word</button>
+        <button type="button" class="btn" data-action="pdf">Download PDF</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+A.fmla_policy = () => {
+  const id = 'fmla'+Date.now();
+  const from = {town:'Town Clerk / Board of Trustees', aldermanic:'Mayor / City Clerk', cm:'City Manager / Human Resources', strong:'Mayor / Human Resources', charter:'[Per charter]'}[state.form];
+  state.docs[id] = { kind:'fmla', title:`FMLA Leave Policy – ${state.muni}`, from };
+  return { title:'FMLA leave policy', blocks:[
+    `<p>Here's your FMLA policy, built from OMAG's sample policy and set up for a <strong>${esc(F().label)}</strong>. I filled in your ${F().unit.toLowerCase()}'s details and highlighted the decisions only you can make. Have your municipal attorney or OMAG Legal Services review it before the ${esc(F().body)} adopts it.</p>`,
+    docCard(id, { title: state.docs[id].title, bullets:[
+      `Built from the ${cite('omag-fmla','OMAG sample FMLA policy')}`,
+      `12-month period: measured forward from first leave ${cite('29-CFR-825.200','29 C.F.R. § 825.200')}`,
+      `Issued by: ${esc(from)}`,
+      `Highlighted fields for decisions only your ${F().unit.toLowerCase()} can make`
+    ]}),
+    suggest([['Use a rolling 12-month period instead','Explain the four 12-month period methods'],['Add the acknowledgment receipt','Create a policy acknowledgment receipt']])
+  ]};
+};
+
+A.receipt = () => {
+  const id = 'rcpt'+Date.now();
+  state.docs[id] = { kind:'receipt', title:`Personnel Policy Receipt and Acknowledgment – ${state.muni}` };
+  return { title:'Policy acknowledgment receipt', blocks:[
+    `<p>Here's the receipt and acknowledgment page from OMAG's personnel policy template, set up for ${esc(state.muni)}. Each employee should sign and date it, and you should keep it in their personnel file.</p>`,
+    docCard(id, { title: state.docs[id].title, bullets:[`From the ${cite('omag-handbook','OMAG sample personnel policy')}`,'Includes the at-will and not-a-contract acknowledgments','Signature and date lines for employee and supervisor']})
+  ]};
+};
+
+A.handbook_ask = () => {
+  const f = F();
+  const base = state.form==='charter' ? 'Council-Manager' : f.label;
+  const custodians = {town:['Town Clerk','Town Administrator','Human Resources Director','Board of Trustees'],aldermanic:['City Clerk','Mayor','Human Resources Director'],cm:['City Manager','City Clerk','Human Resources Director'],strong:['Mayor','City Clerk','Human Resources Director'],charter:['City Manager','City Clerk','Human Resources Director']}[state.form];
+  return { title:'Personnel policies handbook', blocks:[
+    `<p>I'll build it from OMAG's <strong>${esc(base)}</strong> personnel policy template${state.form==='charter'?' (the closest match, and I\'ll flag sections to check against your charter)':''}. The template has blanks only your ${f.unit.toLowerCase()} can fill in. Here are the key ones:</p>`,
+    `<form class="form-card" data-form="handbook">
+      <div class="form-grid">
+        <div class="field full"><label for="hb-muni">${f.unit} name</label><input class="input" id="hb-muni" name="muni" value="${esc(state.muni)}" required></div>
+        <div class="field"><label for="hb-cust">Who approves access to personnel records?</label><select class="select" id="hb-cust" name="cust">${custodians.map(c=>`<option>${c}</option>`).join('')}</select></div>
+        <div class="field"><label for="hb-ret">Retirement plan</label><input class="input" id="hb-ret" name="ret" placeholder="e.g. Oklahoma Municipal Retirement Fund"></div>
+        <div class="field"><label for="hb-wait">Months before sick leave starts</label><input class="input" id="hb-wait" name="wait" type="number" min="0" max="24" value="3"></div>
+        <div class="field"><label for="hb-first">Sick leave hours, first 6 months</label><input class="input" id="hb-first" name="first" type="number" min="0" value="24"></div>
+        <div class="field"><label for="hb-after">Sick leave hours per 6 months after that</label><input class="input" id="hb-after" name="after" type="number" min="0" value="48"></div>
+        <div class="field"><label for="hb-max">Maximum sick leave accrual (hours)</label><input class="input" id="hb-max" name="max" type="number" min="0" value="480"></div>
+      </div>
+      <div class="form-foot"><span class="hint">Anything you leave blank stays highlighted in the document.</span><button type="submit" class="btn primary">Build handbook</button></div>
+    </form>`
+  ]};
+};
+
+A.handbook_done = (v) => {
+  const id = 'hb'+Date.now();
+  if (v.muni && !/^(Town|City) of Example$/.test(v.muni)) { state.muni = v.muni; state.muniSet = true; } renderProfile();
+  state.docs[id] = Object.assign({ kind:'handbook', title:`Employee Personnel Policy – ${state.muni}` }, v);
+  const blanks = ['ret','wait','first','after','max'].filter(k=>!String(v[k]||'').trim()).length;
+  return { title:'Personnel policies handbook', blocks:[
+    `<p>Your handbook is ready. I built it from OMAG's ${esc(state.form==='charter'?'Council-Manager':F().label)} template, filled in your answers, and kept the Title 11 authority section that matches your form of government.</p>`,
+    docCard(id, { title: state.docs[id].title, bullets:[
+      `Authority section for a ${esc(F().label)} ${cite('omag-handbook','OMAG template')}`,
+      `Personnel records released with approval of the ${esc(v.cust)}`,
+      `Sick leave: ${esc(v.wait||'__')}-month wait, then ${esc(v.first||'__')} hrs, then ${esc(v.after||'__')} hrs every 6 months (max ${esc(v.max||'__')})`,
+      blanks ? `${blanks} field${blanks>1?'s':''} still highlighted for you to complete` : 'All key blanks filled in'
+    ]}),
+    callout(`<strong>Before you distribute it:</strong> the ${esc(F().body)} must approve the policy, and each employee should sign the Receipt and Acknowledgment page. Have your municipal attorney or OMAG Legal Services review it first.`),
+    suggest([['Create the acknowledgment receipt','Create a policy acknowledgment receipt'],['Is our handbook FMLA compliant?']])
+  ]};
+};
+
+/* ============ LIVE: config, identity, history ============ */
+const CFG = window.PIP_CONFIG || {};
+const API = String(CFG.apiUrl || (/^(localhost|127\.0\.0\.1)$/.test(location.hostname) ? location.origin : '')).replace(/\/$/, '');
+const LS = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+};
+const rid = (n = 16) => Array.from(crypto.getRandomValues(new Uint8Array(n)), (b) => 'abcdefghijklmnopqrstuvwxyz0123456789'[b % 36]).join('');
+const browserId = LS.get('pip.browser') || (() => { const id = 'b_' + rid(); LS.set('pip.browser', id); return id; })();
+state.form = LS.get('pip.form', 'town');
+let conv = newConv();
+function newConv() { return { id: 'c_' + rid(), title: '', form: state.form, updated: Date.now(), messages: [] }; }
+function saveConv() {
+  if (!conv.messages.length) return;
+  conv.updated = Date.now();
+  const all = LS.get('pip.history', []).filter((c) => c.id !== conv.id);
+  all.unshift(conv);
+  LS.set('pip.history', all.slice(0, 25));
+  renderRecent();
+}
+
+/* ============ LOCAL SOURCES (OMAG templates) ============ */
+const LOCAL_SOURCES = {
+  'omag-fmla': { kicker: 'OMAG template', title: 'OMAG Sample Employee and Family Member FMLA Policy',
+    body: `<p>OMAG's sample FMLA policy covers the purpose of the Act, definitions, eligibility, leave entitlement, the 12-month measuring period, notice, certification, benefits and job restoration, with citations to 29 C.F.R. Part 825.</p><p>The template notes that it should be reviewed by the municipal attorney before distribution so it accurately reflects the ordinances, policies and practices adopted by the governing body.</p>` },
+  'omag-handbook': { kicker: 'OMAG template', title: 'OMAG Sample Employee Personnel Policy',
+    body: `<p>OMAG maintains sample employee personnel policies for each statutory form of government — Statutory Town, Aldermanic, Strong-Mayor and Council-Manager — each written around that form's Title 11 authority sections and incorporating employment at-will status.</p><p>The governing body must approve the policy before it is distributed, and each employee should sign the Receipt and Acknowledgment page.</p>` }
+};
+
+/* ============ CITATIONS & MARKDOWN ============ */
+const ID_RE = /^[A-Za-z0-9.\-]{2,40}$/;
+function citeLabel(id) {
+  let m;
+  if ((m = id.match(/^(\d+)-CFR-(.+)$/))) return `${m[1]} C.F.R. § ${m[2]}`;
+  if ((m = id.match(/^(\d+[A-Z]?)-(.+?)(?:v(\d+))?$/))) return `${m[1]} O.S. § ${m[2]}${m[3] ? ` (v${m[3]})` : ''}`;
+  return id;
+}
+/** Markdown subset → HTML. `cites`: null while streaming (all ids shown), or a Map of verified id → label. */
+function md(src, cites) {
+  const inline = (s) => esc(s)
+    .replace(/\[\[([^\]\n]{1,40})\]\]/g, (_, raw) => {
+      const id = raw.trim();
+      if (!ID_RE.test(id)) return '';
+      if (cites && !cites.has(id)) return '';
+      return ' ' + cite(id, esc(cites ? cites.get(id) : citeLabel(id)));
+    })
+    .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|[\s(])\*([^*\n]+)\*(?=[\s).,;:!?]|$)/g, '$1<em>$2</em>')
+    .replace(/`([^`\n]+)`/g, '<code>$1</code>')
+    .replace(/ +(?=<button type="button" class="cite")/g, ' ');
+  const out = [];
+  let list = null, para = [];
+  const flushPara = () => { if (para.length) { out.push(`<p>${inline(para.join(' '))}</p>`); para = []; } };
+  const flushList = () => { if (list) { out.push(`<${list.tag}>${list.items.map((i) => `<li>${inline(i)}</li>`).join('')}</${list.tag}>`); list = null; } };
+  for (const raw of String(src).replace(/\r/g, '').split('\n')) {
+    const line = raw.trimEnd();
+    let m;
+    if (!line.trim()) { flushPara(); flushList(); continue; }
+    if ((m = line.match(/^#{1,4}\s+(.*)$/))) { flushPara(); flushList(); out.push(`<h4>${inline(m[1])}</h4>`); continue; }
+    if ((m = line.match(/^\s*(?:[-*•])\s+(.*)$/))) { flushPara(); if (!list || list.tag !== 'ul') { flushList(); list = { tag: 'ul', items: [] }; } list.items.push(m[1]); continue; }
+    if ((m = line.match(/^\s*\d{1,2}[.)]\s+(.*)$/))) { flushPara(); if (!list || list.tag !== 'ol') { flushList(); list = { tag: 'ol', items: [] }; } list.items.push(m[1]); continue; }
+    if (list && /^\s{2,}\S/.test(raw)) { list.items[list.items.length - 1] += ' ' + line.trim(); continue; }
+    flushList();
+    para.push(line.trim());
+  }
+  flushPara(); flushList();
+  return out.join('');
+}
+const plain = (src, cites) => String(src).replace(/\[\[([^\]\n]{1,40})\]\]/g, (_, id) => (cites?.has(id.trim()) ? `(${cites.get(id.trim())})` : '')).replace(/\*\*/g, '');
+
+/* ============ LIVE ANSWERS ============ */
+const TOOLS_HTML = `<button type="button" class="icon-btn" data-action="copy" aria-label="Copy answer"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+  <button type="button" class="icon-btn" data-vote="up" aria-label="Helpful" aria-pressed="false"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12M15 5.9 14 10h5.8a2 2 0 0 1 2 2.3l-1.4 8A2 2 0 0 1 18.4 22H7V10l4-8a3 3 0 0 1 4 3.9z"/></svg></button>
+  <button type="button" class="icon-btn" data-vote="down" aria-label="Not helpful" aria-pressed="false"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 14V2M9 18.1 10 14H4.2a2 2 0 0 1-2-2.3l1.4-8A2 2 0 0 1 5.6 2H17v12l-4 8a3 3 0 0 1-4-3.9z"/></svg></button>`;
+
+function aiShell() {
+  const wrap = document.createElement('div');
+  wrap.className = 'msg-ai block';
+  wrap.innerHTML = `<div class="ai-mark" aria-hidden="true">${pipIcon()}</div><div class="ai-body"><div class="ai-name">${esc(BOT)} <span class="ai-tag" title="Answers are generated by AI">AI</span></div><div class="thinking-label"><div class="typing" aria-hidden="true"><span></span><span></span><span></span></div><span class="status-text">Reading your question…</span></div><div class="ai-answer"></div></div>`;
+  inner.appendChild(wrap);
+  scrollDown();
+  return { wrap, body: wrap.querySelector('.ai-body'), status: wrap.querySelector('.thinking-label'), answer: wrap.querySelector('.ai-answer') };
+}
+
+function finishAnswer(ui, msg) {
+  ui.status?.remove();
+  const cites = new Map((msg.citations || []).map((c) => [c.marker || c.id, c.cite]));
+  (msg.citations || []).forEach((c) => cites.set(c.id, c.cite));
+  ui.answer.innerHTML = md(msg.text, cites);
+  // markers resolve to library ids for the source panel
+  ui.answer.querySelectorAll('.cite').forEach((b) => { const c = (msg.citations || []).find((x) => x.marker === b.dataset.cite || x.id === b.dataset.cite); if (c) b.dataset.cite = c.id; });
+  if (msg.unread?.length) ui.answer.insertAdjacentHTML('beforeend', `<p class="note-muted">${msg.unread.length === 1 ? 'One reference' : msg.unread.length + ' references'} couldn't be verified against the statute library and ${msg.unread.length === 1 ? 'was' : 'were'} removed.</p>`);
+  const t = document.createElement('div');
+  t.className = 'tools block';
+  t.innerHTML = TOOLS_HTML;
+  t.dataset.turn = msg.turnId || '';
+  ui.body.appendChild(t);
+  ui.body._msg = msg;
+}
+
+async function askLive(q) {
+  if (state.busy || !q.trim()) return;
+  closeSidebar();
+  addUser(q);
+  if (!conv.title) { conv.title = q.length > 48 ? q.slice(0, 46).trim() + '…' : q; $('#conv-title').textContent = conv.title; }
+  conv.form = state.form;
+  conv.messages.push({ role: 'user', text: q });
+  saveConv();
+  setActive(conv.id);
+
+  const ui = aiShell();
+  state.busy = true; updateSend();
+  let acc = '';
+  let raf = 0;
+  const paint = () => { raf = 0; ui.answer.innerHTML = md(acc, null) + '<span class="caret" aria-hidden="true"></span>'; scrollDown(); };
+  const setStatus = (text) => { const el = ui.status?.querySelector('.status-text'); if (el) el.textContent = text + '…'; };
+  const fail = (message) => {
+    ui.status?.remove();
+    ui.answer.innerHTML = `<div class="callout error">${ICON.info}<div>${esc(message)}</div></div>`;
+    conv.messages.pop(); saveConv();
+  };
+
+  try {
+    if (!API) throw new Error('Pip isn’t connected yet. Set apiUrl in web/config.js after deploying the backend.');
+    const res = await fetch(API + '/chat', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        conversationId: conv.id, browserId, form: state.form,
+        city: state.muniSet ? state.muni : undefined,
+        messages: conv.messages.map(({ role, text }) => ({ role, text }))
+      })
+    });
+    if (!res.ok) {
+      let msg = `Pip couldn't answer (error ${res.status}).`;
+      try { msg = (await res.json()).error || msg; } catch {}
+      throw new Error(msg);
+    }
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '';
+    let done = null;
+    for (;;) {
+      const { value, done: end } = await reader.read();
+      if (end) break;
+      buf += dec.decode(value, { stream: true });
+      let nl;
+      while ((nl = buf.indexOf('\n')) >= 0) {
+        const line = buf.slice(0, nl).trim();
+        buf = buf.slice(nl + 1);
+        if (!line) continue;
+        let ev; try { ev = JSON.parse(line); } catch { continue; }
+        if (ev.type === 'status') setStatus(ev.text);
+        else if (ev.type === 'text') { if (ui.status && !acc) ui.status.classList.add('quiet'); acc += ev.text; if (!raf) raf = requestAnimationFrame(paint); }
+        else if (ev.type === 'reset') { acc = ''; ui.answer.innerHTML = ''; ui.status?.classList.remove('quiet'); }
+        else if (ev.type === 'done') done = ev;
+        else if (ev.type === 'error') throw new Error(ev.message);
+      }
+    }
+    if (raf) cancelAnimationFrame(raf);
+    if (!done) throw new Error('The answer was cut off. Please try again.');
+    const msg = { role: 'assistant', text: acc, citations: done.citations, unread: done.unread, turnId: done.turnId };
+    finishAnswer(ui, msg);
+    conv.messages.push(msg);
+    saveConv();
+  } catch (e) {
+    if (raf) cancelAnimationFrame(raf);
+    fail(e.message || 'Something went wrong. Please try again.');
+  } finally {
+    state.busy = false; updateSend(); scrollDown();
+  }
+}
+
+/** Local (client-side) flows: document templates. Everything else goes to the API. */
+function routeLocal(q) {
+  const t = q.toLowerCase();
+  if (/acknowledg|receipt/.test(t) && /(create|make|draft|build)/.test(t)) return A.receipt();
+  if (/(create|draft|build|make).*(fmla).*(policy)|^fmla leave policy/.test(t)) return A.fmla_policy();
+  if (/(build|create|draft|make|write).*(handbook|personnel polic)/.test(t)) return A.handbook_ask();
+  return null;
+}
+async function ask(q, opts = {}) {
+  if (state.busy || !q.trim()) return;
+  const local = opts.answer || routeLocal(q);
+  if (local) { closeSidebar(); addUser(q); if (!conv.title) { conv.title = local.title; $('#conv-title').textContent = local.title; } await addAI(local); return; }
+  return askLive(q);
+}
+
+/* ============ SOURCE PANEL ============ */
+let lastFocus = null;
+const sourceCache = new Map();
+function showPanel(kicker, title, html) {
+  $('#panel-kicker').textContent = kicker;
+  $('#panel-title').textContent = title;
+  $('#panel-body').innerHTML = html;
+  $('#scrim').classList.add('show'); $('#panel').classList.add('show');
+  $('#panel').querySelector('[data-action="close-panel"]').focus();
+}
+async function openCite(id) {
+  lastFocus = document.activeElement;
+  if (LOCAL_SOURCES[id]) { const s = LOCAL_SOURCES[id]; return showPanel(s.kicker, s.title, s.body + `<div class="panel-source">Source: OMAG sample template.</div>`); }
+  showPanel('Loading', citeLabel(id), '<p class="note-muted">Loading the section…</p>');
+  try {
+    let s = sourceCache.get(id);
+    if (!s) {
+      const r = await fetch(`${API}/source?id=${encodeURIComponent(id)}`);
+      if (!r.ok) throw new Error();
+      s = await r.json(); sourceCache.set(id, s);
+    }
+    const paras = s.text.split(/\n{2,}/).map((p) => `<p>${esc(p)}</p>`).join('');
+    showPanel(s.source, `${s.cite} — ${s.heading}`, paras + `<div class="panel-source">${s.history ? `<div style="margin-bottom:8px">History: ${esc(s.history)}</div>` : ''}${s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">Official source ↗</a>` : ''}</div>`);
+  } catch {
+    showPanel('Source', citeLabel(id), '<p>Couldn\'t load this section right now. Please try again.</p>');
+  }
+}
+function closePanel() { $('#scrim').classList.remove('show'); $('#panel').classList.remove('show'); if (lastFocus) lastFocus.focus(); }
+
+/* ============ HISTORY (this browser only) ============ */
+function renderRecent() {
+  const list = LS.get('pip.history', []);
+  const box = $('#recent-list');
+  box.innerHTML = list.length
+    ? list.slice(0, 12).map((c) => `<button type="button" class="side-item${c.id === conv.id ? ' active' : ''}" data-conv="${esc(c.id)}"><span class="side-text">${esc(c.title || 'Conversation')}</span></button>`).join('')
+    : `<p class="side-empty">Your conversations are saved in this browser only.</p>`;
+}
+function closeSidebar() { $('#sidebar').classList.remove('open'); }
+function setActive(id) { document.querySelectorAll('[data-conv]').forEach((b) => b.classList.toggle('active', b.dataset.conv === id)); }
+function openConv(id) {
+  const c = LS.get('pip.history', []).find((x) => x.id === id);
+  if (!c || state.busy) return;
+  closeSidebar();
+  conv = c;
+  if (c.form && FORMS[c.form] && c.form !== state.form) { state.form = c.form; renderGov(); }
+  started = true; state.docs = {};
+  inner.innerHTML = '';
+  $('#conv-title').textContent = c.title || 'Conversation';
+  for (const m of c.messages) {
+    if (m.role === 'user') { addUser(m.text); continue; }
+    const ui = aiShell();
+    finishAnswer(ui, m);
+  }
+  setActive(id);
+}
+
+/* ============ CONTACT ============ */
+function openContact() {
+  openModal('Talk to OMAG', `
+    <div style="display:flex;flex-direction:column;gap:14px;font-size:15px;line-height:1.55">
+      <p style="margin:0">For legal questions, discipline decisions, or anything with liability exposure, talk to OMAG's Legal and Personnel Services staff directly.</p>
+      <div style="display:flex;flex-direction:column;gap:4px;padding:14px 16px;border-radius:12px;background:#f4f7fa;border:1px solid var(--line)">
+        <strong>OMAG Legal &amp; Personnel Services</strong>
+        <span style="font-weight:600">1-800-234-9461 (toll free)</span>
+      </div>
+      <label class="field" style="gap:6px"><span style="font-size:13px;font-weight:600;color:var(--ink-2)">Or send ${conv.messages.length ? 'this conversation' : 'a message'} to OMAG with a note</span>
+        <textarea class="input" id="contact-note" rows="3" style="padding:10px 12px;min-height:84px" placeholder="What would you like OMAG to look at? Include your name, municipality and how to reach you."></textarea></label>
+    </div>`,
+    `<button type="button" class="btn" data-action="close-modal">Cancel</button><button type="button" class="btn primary" data-action="send-omag">Send to OMAG</button>`);
+}
+async function sendContact(btn) {
+  const note = $('#contact-note')?.value.trim() || '';
+  if (!note && !conv.messages.length) { toast('Add a note first.'); return; }
+  btn.disabled = true;
+  try {
+    if (!API) throw new Error();
+    const transcript = conv.messages.map((m) => `${m.role === 'user' ? 'Member' : BOT}: ${plain(m.text, new Map((m.citations || []).map((c) => [c.marker || c.id, c.cite])))}`).join('\n\n');
+    const r = await fetch(API + '/contact', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ conversationId: conv.id, city: state.muniSet ? state.muni : undefined, form: state.form, note, transcript }) });
+    if (!r.ok) throw new Error();
+    closeModal();
+    toast('Sent to OMAG. Someone will follow up with you.');
+  } catch {
+    btn.disabled = false;
+    toast('Couldn’t send right now. Please call 1-800-234-9461.');
+  }
+}
+
+async function vote(btn) {
+  const tools = btn.closest('.tools');
+  const turnId = tools?.dataset.turn;
+  tools.querySelectorAll('[data-vote]').forEach((b) => { b.classList.remove('on'); b.setAttribute('aria-pressed', 'false'); });
+  btn.classList.add('on'); btn.setAttribute('aria-pressed', 'true');
+  if (!turnId || !API) return toast('Thanks for the feedback.');
+  try {
+    await fetch(API + '/feedback', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ conversationId: conv.id, turnId, rating: btn.dataset.vote }) });
+    toast('Thanks — this helps OMAG improve Pip.');
+  } catch { toast('Thanks for the feedback.'); }
+}
+
+/* ============ RENDERING ============ */
+let started = false;
+function renderWelcome(){
+  started = false; state.docs = {}; conv = newConv();
+  $('#conv-title').textContent = 'New conversation';
+  setActive(null); renderRecent();
+  inner.innerHTML = `<div class="welcome">
+    <div class="welcome-head">
+      <div class="welcome-mark" aria-hidden="true">${pipIcon()}</div>
+      <h2>Hi, I'm ${esc(BOT)}. What HR question can I help with?</h2>
+      ${API ? '' : `<div class="offline">${ICON.info}<div><strong>Not connected yet.</strong> Set <code>apiUrl</code> in <code>web/config.js</code> after deploying the backend. Document templates still work.</div></div>`}
+      <p>I'm OMAG's AI assistant for municipal HR. Ask about Oklahoma statutes and federal employment law for your form of government, or have me draft a document from OMAG's templates using your ${F().unit.toLowerCase()}'s details.</p>
+    </div>
+    <div class="starters">
+      <button type="button" class="starter" data-ask="Does our town clerk have hiring authority?"><span class="starter-kicker">Authority</span><span class="starter-text">Does our ${F().clerk.toLowerCase()} have hiring authority?</span></button>
+      <button type="button" class="starter" data-ask="Is our handbook FMLA compliant?"><span class="starter-kicker">Leave</span><span class="starter-text">Is our handbook FMLA compliant?</span></button>
+      <button type="button" class="starter" data-ask="Can the mayor suspend an employee unilaterally?"><span class="starter-kicker">Discipline</span><span class="starter-text">Can the mayor suspend an employee unilaterally?</span></button>
+      <button type="button" class="starter" data-ask="Build our personnel policies handbook"><span class="starter-kicker doc">Create a document</span><span class="starter-text">Build our personnel policies handbook for a ${esc(F().label)}.</span></button>
+    </div>
+  </div>`;
+  thread.scrollTop = 0;
+}
+
+function addUser(text, file){
+  if (!started){ inner.innerHTML=''; started = true; }
+  const el = document.createElement('div'); el.className='msg-user block';
+  el.innerHTML = `<div class="bubble">${file?`<div class="file-chip">${ICON.file} ${esc(file)}</div><br>`:''}${esc(text)}</div>`;
+  inner.appendChild(el); scrollDown();
+}
+
+async function addAI(ans){
+  state.busy = true; updateSend();
+  const wrap = document.createElement('div'); wrap.className='msg-ai block';
+  wrap.innerHTML = `<div class="ai-mark" aria-hidden="true">${pipIcon()}</div><div class="ai-body"><div class="ai-name">${esc(BOT)} <span class="ai-tag" title="Answers are generated by AI">AI</span></div><div class="thinking-label"><div class="typing" aria-hidden="true"><span></span><span></span><span></span></div><span>Checking Title 11, federal regulations and OMAG guidance…</span></div></div>`;
+  inner.appendChild(wrap); scrollDown();
+  await sleep(900 + Math.random()*500);
+  const body = wrap.querySelector('.ai-body'); body.querySelector('.thinking-label').remove();
+  if (ans.title && $('#conv-title').textContent==='New conversation') $('#conv-title').textContent = ans.title;
+  for (const html of ans.blocks){
+    const d = document.createElement('div'); d.className='block'; d.innerHTML = html;
+    body.appendChild(d);
+    scrollDown(); await sleep(220);
+  }
+  const tools = document.createElement('div'); tools.className='tools block';
+  tools.innerHTML = `<button type="button" class="icon-btn" data-action="copy" aria-label="Copy answer"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+  <button type="button" class="icon-btn" data-action="vote" aria-label="Helpful" aria-pressed="false"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12M15 5.9 14 10h5.8a2 2 0 0 1 2 2.3l-1.4 8A2 2 0 0 1 18.4 22H7V10l4-8a3 3 0 0 1 4 3.9z"/></svg></button>
+  <button type="button" class="icon-btn" data-action="vote" aria-label="Not helpful" aria-pressed="false"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 14V2M9 18.1 10 14H4.2a2 2 0 0 1-2-2.3l1.4-8A2 2 0 0 1 5.6 2H17v12l-4 8a3 3 0 0 1-4-3.9z"/></svg></button>`;
+  body.appendChild(tools);
+  scrollDown();
+  state.busy = false; updateSend();
+}
+
+
+/* ============ MODALS ============ */
+function openModal(title, body, foot, wide){
+  lastFocus = document.activeElement;
+  $('#modal-title').textContent = title;
+  $('#modal-body').innerHTML = body;
+  $('#modal-foot').innerHTML = foot || '';
+  $('#modal-foot').style.display = foot ? '' : 'none';
+  $('#modal-card').classList.toggle('wide', !!wide);
+  $('#modal-body').style.padding = wide ? '0' : '';
+  $('#modal').classList.add('show');
+  $('#modal').querySelector('[data-action="close-modal"].icon-btn').focus();
+}
+function closeModal(){ const m=$('#modal'); if(!m.classList.contains('show')) return; m.classList.remove('show'); if(lastFocus) lastFocus.focus(); }
+
+function renderGov(){
+  const sel = $('#gov-select');
+  if (!sel.options.length) sel.innerHTML = Object.entries(FORMS).map(([k,v])=>`<option value="${k}">${v.label}</option>`).join('');
+  sel.value = state.form;
+}
+function setForm(form){
+  if (form === state.form) return;
+  state.form = form; LS.set('pip.form', form);
+  if (/^(Town|City) of Example$/.test(state.muni)) state.muni = F().unit + ' of Example';
+  renderProfile();
+  if (!started) renderWelcome();
+  toast(`Pip will now answer for a ${F().label}.`);
+}
+function renderProfile(){ renderGov(); }
+
+
+function openTemplates(){
+  openModal('Document templates', `<div style="display:flex;flex-direction:column;gap:10px">
+    ${[['handbook','Personnel policies handbook',`OMAG's template for a ${F().label}, filled in with your details`],['fmla_policy','FMLA leave policy',"OMAG's sample employee and family member FMLA policy"],['receipt','Policy acknowledgment receipt','Signature page for employees to acknowledge the handbook']].map(([k,t,d])=>`<button type="button" class="starter" data-template="${k}" style="min-height:0"><span class="starter-text" style="font-weight:600">${t}</span><span style="font-size:13.5px;color:var(--muted)">${esc(d)}</span></button>`).join('')}
+  </div>`);
+}
+
+/* --- document preview / download --- */
+const B = (v, fallback) => (v!==undefined && String(v).trim()!=='') ? `<span class="filled">${esc(v)}</span>` : `<span class="blank">${fallback||'________'}</span>`;
+function docHTML(id){
+  const d = state.docs[id]; const f = F(); const U = f.unit;
+  const head = `<div class="letterhead"><div class="town">${esc(state.muni)}</div><div class="sm">${esc(f.label)} · Oklahoma</div></div>`;
+  if (d.kind==='fmla') return `<div class="doc-page">${head}
+    <h1>Employee and Family Member FMLA Policy</h1>
+    <p style="text-align:center;font-size:12px;color:#666;margin-bottom:22px">Adopted by the ${esc(f.body)} on ${B('','[DATE]')}</p>
+    <p><strong>TO:</strong> Department Directors / Division Managers<br><strong>FROM:</strong> ${B(d.from)}<br><strong>SUBJECT:</strong> Family and Medical Leave Act of 1993 – Employee and Family Member</p>
+    <h2>I. Purpose of the Act</h2>
+    <p>The FMLA allows eligible employees to take up to 12 weeks of unpaid leave in a 12-month period for medical reasons; the birth or adoption of a child; and the care of a child, spouse, or parent of the employee who has a serious health condition. (§ 825.200(a)).</p>
+    <h2>II. Definitions</h2>
+    <h3>H. FMLA 12-Month Period</h3>
+    <p>The 12-month period is measured forward from the date an employee's first FMLA leave begins. Example: If an employee's FMLA 12-month period begins on June 9 it will run until the following June 8. (§ 825.200(b)(4)).</p>
+    <h2>III. Eligibility Requirements</h2>
+    <p>To be eligible for leave under the FMLA, an employee must have been employed by ${B(state.muni)} for at least 12 months within the past seven years and worked at least 1,250 hours during the previous 12-month period preceding the request for leave. (§ 825.110).</p>
+    <p style="color:#888;font-style:italic;margin-top:24px">— Preview shows the first sections. The full policy continues with leave entitlement, notice, certification, benefits and job restoration. —</p></div>`;
+  if (d.kind==='receipt') return `<div class="doc-page">${head}
+    <h1>Employee Personnel Policy</h1><h2 style="text-align:center">Receipt and Acknowledgment</h2>
+    <p>I acknowledge that I have received a copy of the ${B(state.muni)} Employee Personnel Policy. I understand that it is my responsibility to read and comply with the policies it contains and any revisions made to it.</p>
+    <p>I understand that the policy is not a contract of employment, and that my employment with the ${U} is at-will. The ${U} may change its policies at any time.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:40px;font-family:'Public Sans',sans-serif;font-size:12px;color:#555">
+      <div style="border-top:1px solid #333;padding-top:6px">Employee signature</div><div style="border-top:1px solid #333;padding-top:6px">Date</div>
+      <div style="border-top:1px solid #333;padding-top:6px">Employee name (printed)</div><div style="border-top:1px solid #333;padding-top:6px">Supervisor signature</div>
+    </div></div>`;
+  // handbook
+  const auth = {
+    town:`<h3>Authority (11 O.S. § 12-106)</h3><p>The Board of Trustees may appoint and remove, and confirm appointments of designated town officers and employees as provided by law or ordinance. The Board of Trustees may inquire into the conduct of any office, department or agency of the Town, and investigate municipal affairs, or authorize and provide such inquiries.</p>`,
+    aldermanic:`<h3>Authority (11 O.S. §§ 9-105 and 9-117)</h3><p>The Mayor shall serve as the Chief Executive Officer of the administrative branch of the City… The Mayor shall also appoint, subject to the confirmation by the City Council, a City Attorney and all heads or directors of administrative departments and all other administrative officers and employees of the City. All appointments and promotions shall be made solely on the basis of merit and fitness.</p>`,
+    cm:`<h3>Authority (11 O.S. § 10-113)</h3><p>The City Manager serves as the Chief Executive Officer and Head of the administrative branch of the City and supervises and controls all departments, officers and agencies of the City. The City Manager shall appoint, and when necessary for the good of the service, remove, demote, lay-off or suspend all heads of administrative departments and other administrative officers and employees of the City except as otherwise provided by law.</p>`,
+    strong:`<h3>Authority (11 O.S. § 11-106)</h3><p>The Mayor serves as the Chief Administrative Officer and head of the administrative branch of the City and supervises and controls all departments, officers and agencies of the City. The Mayor shall appoint, and when necessary for the good of the service, remove, demote, lay off or suspend all heads of administrative departments and other administrative officers and employees of the City except as otherwise provided by law.</p>`
+  };
+  auth.charter = auth.cm.replace('</p>',' <span class="blank">[Confirm against city charter]</span></p>');
+  return `<div class="doc-page">${head}
+    <h1>Employee Personnel Policy</h1>
+    <p style="text-align:center;font-size:12px;color:#666;margin-bottom:22px">Approved by the ${esc(f.body)} of ${esc(state.muni)} on ${B('','[DATE]')}</p>
+    <h2>Introduction</h2>
+    <p>This handbook is intended to be an informative guide to employees of the ${B(state.muni)} ("${U}") regarding its policies, procedures, and benefits. The ${U} is proud of the procedures and policies that we have developed. We think you will find that they reflect our commitment to treating our employees fairly.</p>
+    <p><strong>Disclaimer:</strong> This handbook is provided as a guide and is not to be considered a contract. The ${U} reserves the right to make changes to its policies, procedures, and other statements made in the handbook… No such change in the Employee Personnel Policy shall modify the at-will nature of employment at the ${U}.</p>
+    <h2>General Policies and Procedures</h2>${auth[state.form]}
+    <h3>Personnel Records</h3>
+    <p>All individual records, computer generated employee reports, personnel files, and information therein, except those specified by ordinance or statute as public records, shall be restricted as confidential, and shall be available only with the approval of the ${B(d.cust)}.</p>
+    <h3>Pension or Retirement Benefits</h3>
+    <p>The ${U} pays monthly premiums into the ${B(d.ret,'[RETIREMENT PLAN]')} for your retirement. Please see the payroll clerk for details.</p>
+    <h3>Sick Leave</h3>
+    <p>No employee will be eligible for Sick Leave until such time that the employee has ${B(d.wait,'___')} months of service with the ${U}. At that time, an employee will be eligible for ${B(d.first,'___')} hours of Sick Leave for the following six months. After that, the employee is eligible for ${B(d.after,'___')} hours of sick leave for each six months of continuous service.</p>
+    <p>An employee may accumulate no more than ${B(d.max,'___')} hours of sick leave. Accumulated sick leave is not compensable upon termination of employment.</p>
+    <p style="color:#888;font-style:italic;margin-top:24px">— Preview shows selected sections. Green = filled from your answers; yellow = still needs your input. —</p></div>`;
+}
+function previewDoc(id){
+  const d = state.docs[id]; if(!d) return;
+  openModal(d.title, `<div class="preview-pages">${docHTML(id)}</div>`,
+    `<button type="button" class="btn" data-action="close-modal">Close</button><button type="button" class="btn primary" data-doc-download="${id}">${ICON.dl} Download Word</button>`, true);
+}
+let docxLib = null;
+function loadDocxLib(){
+  if (window.docx) return Promise.resolve(window.docx);
+  if (docxLib) return docxLib;
+  docxLib = new Promise((res, rej)=>{
+    const sc = document.createElement('script');
+    sc.src = 'https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js';
+    sc.onload = ()=> window.docx ? res(window.docx) : rej(new Error('lib'));
+    sc.onerror = ()=>{ docxLib = null; rej(new Error('load')); };
+    document.head.appendChild(sc);
+  });
+  return docxLib;
+}
+/* Convert the preview page's HTML into a real .docx (headings, paragraphs, highlighted blanks). */
+async function buildDocx(id){
+  const D = await loadDocxLib();
+  const { Document, Packer, Paragraph, TextRun, AlignmentType, BorderStyle } = D;
+  const tpl = document.createElement('div'); tpl.innerHTML = docHTML(id);
+  const page = tpl.querySelector('.doc-page');
+  const runs = (node, base={}) => {
+    const out = [];
+    node.childNodes.forEach(n=>{
+      if (n.nodeType===3){ const t=n.textContent.replace(/\s+/g,' '); if(t) out.push(new TextRun(Object.assign({text:t}, base))); }
+      else if (n.nodeType===1){
+        if (n.tagName==='BR'){ out.push(new TextRun({break:1})); return; }
+        const o = Object.assign({}, base);
+        if (n.tagName==='STRONG'||n.tagName==='B') o.bold = true;
+        if (n.tagName==='EM'||n.tagName==='I') o.italics = true;
+        if (n.classList.contains('blank')) o.highlight = 'yellow';
+        out.push(...runs(n, o));
+      }
+    });
+    return out;
+  };
+  const kids = [];
+  page.childNodes.forEach(n=>{
+    if (n.nodeType!==1) return;
+    if (n.classList.contains('letterhead')){
+      kids.push(new Paragraph({alignment:AlignmentType.CENTER, children:[new TextRun({text:n.querySelector('.town').textContent, bold:true, size:30, color:'16324F', font:'Arial'})]}));
+      kids.push(new Paragraph({alignment:AlignmentType.CENTER, spacing:{after:240}, border:{bottom:{color:'3A6A9A', space:6, style:BorderStyle.SINGLE, size:12}}, children:[new TextRun({text:n.querySelector('.sm').textContent, size:18, color:'555555', font:'Arial'})]}));
+      return;
+    }
+    if (/color:#888/.test(n.getAttribute('style')||'')) return;
+    const centered = n.tagName==='H1' || /text-align:center/.test(n.getAttribute('style')||'');
+    if (n.tagName==='H1') kids.push(new Paragraph({alignment:AlignmentType.CENTER, spacing:{before:120,after:80}, children:runs(n,{bold:true,size:40,font:'Georgia'})}));
+    else if (n.tagName==='H2') kids.push(new Paragraph({alignment:centered?AlignmentType.CENTER:undefined, spacing:{before:320,after:120}, children:runs(n,{bold:true,size:21,color:'16324F',font:'Arial',allCaps:true})}));
+    else if (n.tagName==='H3') kids.push(new Paragraph({spacing:{before:220,after:80}, children:runs(n,{bold:true,size:22,font:'Arial'})}));
+    else if (n.tagName==='P') kids.push(new Paragraph({alignment:centered?AlignmentType.CENTER:undefined, spacing:{after:160,line:300}, children:runs(n,{size:23,font:'Georgia'})}));
+    else if (n.tagName==='DIV'){ // signature grid
+      kids.push(new Paragraph({spacing:{before:480}, children:[]}));
+      n.querySelectorAll(':scope > div').forEach(c=> kids.push(new Paragraph({spacing:{before:480,after:60}, border:{top:{color:'333333',space:4,style:BorderStyle.SINGLE,size:6}}, children:[new TextRun({text:c.textContent, size:18, color:'555555', font:'Arial'})]})));
+    }
+  });
+  const doc = new Document({ creator:`${BOT} – OMAG's HR assistant (prototype)`, title: state.docs[id].title, sections:[{ properties:{page:{margin:{top:1440,bottom:1440,left:1440,right:1440}}}, children: kids }] });
+  return Packer.toBlob(doc);
+}
+let downloadsNS;
+async function getDownloads(){
+  if (downloadsNS !== undefined) return downloadsNS;
+  try { downloadsNS = (window.claude && typeof window.claude.use==='function') ? await window.claude.use('downloads') : null; }
+  catch(e){ downloadsNS = null; }
+  return downloadsNS;
+}
+async function downloadDoc(id){
+  const d = state.docs[id]; if(!d) return;
+  const filename = d.title.replace(/[^\w\- ]+/g,'').replace(/\s+/g,'_') + '.docx';
+  toast('Preparing the Word document…');
+  let blob;
+  try { blob = await buildDocx(id); }
+  catch(e){ toast('Couldn\'t build the Word file in this view. The live tool produces a .docx from OMAG\'s template.'); return; }
+  const dl = await getDownloads();
+  if (dl){
+    try { await dl.save({ filename, data: blob }); toast('Saved. The live tool fills in OMAG\'s full template.'); }
+    catch(err){ const c = err && err.code; if (c==='declined') toast('Download cancelled.'); else if (c==='rate_limited') toast('A download prompt is already open.'); else toast('Downloads aren\'t available in this view.'); }
+    return;
+  }
+  try{
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+    toast('Downloaded. The live tool fills in OMAG\'s full template.');
+  }catch(e){ toast('Downloads aren\'t available in this view.'); }
+}
+
+
+/* ============ EVENTS ============ */
+const ta = $('#prompt');
+function updateSend(){ $('#send').disabled = state.busy || !ta.value.trim(); }
+ta.addEventListener('input', ()=>{ ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,180)+'px'; updateSend(); });
+ta.addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); $('#composer').requestSubmit(); } });
+$('#composer').addEventListener('submit', e=>{ e.preventDefault(); const q=ta.value.trim(); if(!q||state.busy) return; ta.value=''; ta.style.height='auto'; updateSend(); ask(q); });
+
+document.addEventListener('submit', e=>{
+  const f = e.target.closest('[data-form="handbook"]'); if(!f) return;
+  e.preventDefault(); if (state.busy) return;
+  const v = Object.fromEntries(new FormData(f).entries());
+  f.querySelectorAll('input,select,button').forEach(el=>el.disabled=true);
+  const summary = `${v.muni}: records approved by ${v.cust}; ${v.ret?v.ret+' retirement; ':''}sick leave ${v.wait||'?'}-month wait, ${v.first||'?'} then ${v.after||'?'} hrs, max ${v.max||'?'}.`;
+  ask(summary, {answer: A.handbook_done(v)});
+});
+
+document.addEventListener('click', e=>{
+  const sb=$('#sidebar'); if(sb.classList.contains('open') && !e.target.closest('#sidebar') && !e.target.closest('[data-action="menu"]')) closeSidebar();
+  const t = e.target.closest('button,[data-action],a'); if(!t) return;
+  if (t.dataset.cite){ openCite(t.dataset.cite); return; }
+  if (t.dataset.ask){ closeModal(); ask(t.dataset.ask); return; }
+  if (t.dataset.conv){ openConv(t.dataset.conv); return; }
+  if (t.dataset.template){ closeModal(); const map={handbook:'Build our personnel policies handbook',fmla_policy:'Create our FMLA policy from the OMAG sample',receipt:'Create a policy acknowledgment receipt'}; ask(map[t.dataset.template]); return; }
+  if (t.dataset.docPreview){ previewDoc(t.dataset.docPreview); return; }
+  if (t.dataset.docDownload){ downloadDoc(t.dataset.docDownload); return; }
+  if (t.dataset.vote){ vote(t); return; }
+  const a = t.dataset.action; if(!a) return;
+  switch(a){
+    case 'new': if (state.busy) return; closeSidebar(); renderWelcome(); ta.focus(); break;
+    case 'menu': $('#sidebar').classList.toggle('open'); break;
+    case 'gov-focus': { closeSidebar(); const sel=$('#gov-select'), box=$('#gov-control'); box.classList.remove('flash'); void box.offsetWidth; box.classList.add('flash'); sel.focus(); try{ sel.showPicker && sel.showPicker(); }catch(_){} break; }
+    case 'contact': openContact(); break;
+    case 'send-omag': sendContact(t); break;
+    case 'templates': openTemplates(); break;
+    case 'close-modal': closeModal(); break;
+    case 'close-panel': closePanel(); break;
+    case 'attach': toast('Attaching files (handbooks, ordinances, charters) is coming in a later phase.'); break;
+    case 'pdf': toast('PDF download is coming soon. For now, download the Word file and save it as PDF.'); break;
+    case 'copy': {
+      const body = t.closest('.ai-body'); const m = body._msg;
+      const txt = m ? plain(m.text, new Map((m.citations||[]).map(c=>[c.marker||c.id,c.cite]))) : body.querySelector('.ai-answer, .block')?.innerText || '';
+      (navigator.clipboard?navigator.clipboard.writeText(txt.trim()):Promise.reject()).then(()=>toast('Answer copied.'),()=>toast('Copy isn\'t available in this view.'));
+      break;
+    }
+  }
+});
+$('#scrim').addEventListener('click', closePanel);
+document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ if($('#modal').classList.contains('show')) closeModal(); else if($('#panel').classList.contains('show')) closePanel(); else closeSidebar(); } });
+$('#gov-select').addEventListener('change', e=> setForm(e.target.value));
+
+/* ============ INIT ============ */
+document.querySelectorAll('[data-bot-name]').forEach(el=>el.textContent=BOT);
+document.querySelectorAll('[data-pip-icon]').forEach(el=>el.innerHTML=pipIcon(el.dataset.pipIcon==='dark'));
+(function(){ const l=document.createElement('link'); l.rel='icon'; l.type='image/svg+xml'; l.href='data:image/svg+xml,'+encodeURIComponent(pipIcon()); document.head.appendChild(l); })();
+document.title = `${BOT} – OMAG's HR Assistant`;
+renderProfile();
+renderWelcome();
+})();
+</script>
+</body>
+</html>
