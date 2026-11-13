@@ -99,12 +99,12 @@ Most changes are made in the admin panel and take effect within a minute, with n
 | To… | Go to |
 |---|---|
 | Change how Pip answers (tone, standing rules, when to send members to OMAG) | **Instructions**: edit the draft, try it in the preview, then **Publish**. Every published version is kept; **Version history → Load into draft** rolls back. |
-| Give Pip OMAG guidance to cite (memos, FAQs, sample policies) | **OMAG documents**: upload a PDF, Word (.docx) or text file. Switch a document off to stop Pip using it without deleting it. Scanned PDFs need OCR first. |
+| Give Pip OMAG guidance to cite (memos, FAQs, sample policies, web pages) | **OMAG documents**: upload a PDF, Word (.docx) or text file, or add a web page by its address. Pip re-reads web pages daily and keeps the last good copy if a site is down. Switch an item off to stop Pip using it without deleting it. Scanned PDFs need OCR first; pages that only show their content with JavaScript can't be read (save them as PDF instead). |
 | See usage: questions over time, topics, most-cited laws, busy hours, municipalities, helpful rate, response time, cost; download everything as CSV | **Analytics** (set the Bedrock token prices under **Settings** to see a cost estimate) |
 | Read what members asked, and see 👎 answers | **Conversations** |
 | Read "Talk to OMAG" messages | **Talk to OMAG** (also emailed to ContactEmail) |
 | Change the welcome text, starter questions, disclaimer, phone, model or daily limits | **Settings** |
-| See or search the statute library | **Statute library** |
+| See or search the statute library, check that its source addresses still work, or change them | **Statute library**: **Check links**, then **Edit sources on GitHub** (steps are on the page) |
 
 Some things are built into the code and can't be changed in the panel: Pip identifies itself as an AI assistant, reads the actual sections before citing them, drops citations it didn't read, and never presents itself as legal counsel.
 

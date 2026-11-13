@@ -98,7 +98,7 @@ Rejected alternatives: **Glean** (internal-employee search, ~100-seat minimum ar
 
 ## Open decisions
 
-- [ ] OML permission to use the 2025 Handbook in a public, member-facing tool
+- [ ] OML permission to use the 2025 Handbook in a public, member-facing tool. Once granted, upload the PDF in the admin panel (**OMAG documents**, publisher **OML**). It's stored privately in S3, never in this public repo, and cited by printed page, e.g. "OML: Handbook for City and Town Officials 2025, p. B-9".
 - [ ] Retention period for transcripts (e.g. 12–24 months, keep anonymized stats), and whether logs are subject to records-retention or open-records requirements; check with OMAG Legal
 - [ ] Who at OMAG can read transcripts vs. only summary numbers (today every admin-panel user sees everything)
 - [ ] Terms-of-use line telling users conversations are logged to improve the service

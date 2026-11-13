@@ -220,3 +220,76 @@ export async function libraryStatus() {
     lastCheck: last ? { at: last.lastCheckAt, message: last.message, error: !!last.error } : null
   };
 }
+
+/* ---------- where the statute library comes from ---------- */
+const SOURCES_URL = () => process.env.SOURCES_URL || 'https://omag-web.github.io/omag-hr/knowledge/sources.json';
+export const SOURCES_EDIT_URL = 'https://github.com/omag-web/omag-hr/edit/main/knowledge/sources.json';
+export const LIBRARY_WORKFLOW_URL = 'https://github.com/omag-web/omag-hr/actions/workflows/library.yml';
+
+/** knowledge/sources.json: the repo copy when running locally, otherwise the published copy on GitHub Pages. */
+async function loadSourcesFile() {
+  const local = fileURLToPath(new URL('../../knowledge/sources.json', import.meta.url));
+  try { return JSON.parse(readFileSync(local, 'utf8')); } catch { /* not in the Lambda package */ }
+  const r = await fetch(SOURCES_URL(), { headers: { 'cache-control': 'no-cache' }, signal: AbortSignal.timeout(15000) });
+  if (!r.ok) throw Object.assign(new Error(`Couldn’t load the source list (HTTP ${r.status}).`), { status: 502 });
+  return r.json();
+}
+
+const ecfrPage = (t, p) => `https://www.ecfr.gov/current/title-${t}/part-${p}`;
+
+/** Every source the library is built from, with how many sections each contributes to the live library. */
+export async function librarySources() {
+  const [cfg, lib] = await Promise.all([loadSourcesFile(), getLibrary()]);
+  const ok = (cfg.oklahoma || []).map((s) => ({
+    kind: 'oklahoma',
+    label: `Title ${s.title} O.S.`,
+    name: s.name,
+    url: s.url,
+    why: s._why || '',
+    include: (s.include || []).join('  '),
+    sections: lib.sections.filter((x) => x.jurisdiction === 'OK' && x.url === s.url).length
+  }));
+  const fed = (cfg.federal || []).map((s) => ({
+    kind: 'federal',
+    label: `${s.title} C.F.R. Part ${s.part}`,
+    name: s.name,
+    url: ecfrPage(s.title, s.part),
+    title: String(s.title), part: String(s.part),
+    why: s._why || '',
+    sections: lib.sections.filter((x) => x.id.startsWith(`${s.title}-CFR-${s.part}.`)).length
+  }));
+  return { sources: [...ok, ...fed], editUrl: SOURCES_EDIT_URL, workflowUrl: LIBRARY_WORKFLOW_URL, builtAt: lib.builtAt };
+}
+
+/** Checks that each source address still answers. Oklahoma PDFs directly; federal parts through the eCFR API. */
+export async function checkSources() {
+  const { fetchPublic } = await import('./web.mjs');
+  const { sources } = await librarySources();
+  let ecfrDates = null;
+  const check = async (s) => {
+    try {
+      if (s.kind === 'oklahoma') {
+        let r;
+        try { r = await fetchPublic(s.url, { method: 'HEAD' }); } catch (e) {
+          if (![403, 405, 501].includes(e.httpStatus)) throw e;
+          r = await fetchPublic(s.url); // some servers refuse HEAD
+        }
+        const pdf = r.contentType.includes('pdf') || /\.pdf$/i.test(r.url);
+        return { url: s.url, ok: pdf, message: pdf ? 'Working' : 'Answers, but isn’t a PDF any more' };
+      }
+      if (!ecfrDates) {
+        const j = JSON.parse((await fetchPublic('https://www.ecfr.gov/api/versioner/v1/titles.json')).body.toString('utf8'));
+        ecfrDates = Object.fromEntries(j.titles.map((t) => [String(t.number), t.up_to_date_as_of]));
+      }
+      const date = ecfrDates[s.title];
+      if (!date) return { url: s.url, ok: false, message: `eCFR has no Title ${s.title}` };
+      await fetchPublic(`https://www.ecfr.gov/api/versioner/v1/ancestry/${date}/title-${s.title}.json?part=${encodeURIComponent(s.part)}`);
+      return { url: s.url, ok: true, message: `Working (current as of ${date})` };
+    } catch (e) {
+      return { url: s.url, ok: false, message: e.httpStatus === 404 ? 'Not found (404). The address may have moved.' : e.message };
+    }
+  };
+  const results = [];
+  for (const s of sources) results.push(await check(s)); // one at a time, to be polite to the Legislature's server
+  return { results, checkedAt: new Date().toISOString() };
+}

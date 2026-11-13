@@ -205,3 +205,43 @@ test('topicOf groups sections into plain-language topics', async () => {
   assert.equal(topicOf('11-12-106'), 'Municipal authority (Title 11)');
   assert.equal(topicOf('omag-memo-ab12-0'), 'OMAG guidance');
 });
+
+test('documents from other publishers are cited under that publisher, not OMAG', async () => {
+  const { readFileSync: rf } = await import('node:fs');
+  const { blobs } = await import('../src/storage.mjs');
+  const buf = rf(new URL('./fixtures/sample-guidance.pdf', import.meta.url));
+  const up = (await call('POST', '/admin/docs', { body: { filename: 'handbook.pdf', size: buf.length, title: 'Handbook for City and Town Officials 2025', publisher: 'OML' } })).json;
+  await blobs.put(`docs/${up.id}/original.pdf`, buf);
+  assert.equal((await call('POST', `/admin/docs/${up.id}/process`)).statusCode, 200);
+  let sec = (await call('GET', `/admin/docs/${up.id}/sections`)).json.sections[0];
+  assert.match(sec.cite, /^OML: Handbook for City and Town Officials 2025/);
+  await call('PUT', `/admin/docs/${up.id}`, { body: { publisher: 'Oklahoma Municipal League' } });
+  sec = (await call('GET', `/admin/docs/${up.id}/sections`)).json.sections[0];
+  assert.match(sec.cite, /^Oklahoma Municipal League: Handbook/);
+  const plain = (await call('POST', '/admin/docs', { body: { filename: 'memo.pdf', size: buf.length, title: 'Memo' } })).json;
+  await blobs.put(`docs/${plain.id}/original.pdf`, buf);
+  await call('POST', `/admin/docs/${plain.id}/process`);
+  assert.match((await call('GET', `/admin/docs/${plain.id}/sections`)).json.sections[0].cite, /^OMAG: Memo/, 'OMAG is the default');
+});
+
+test('PDF pages: footers dropped, printed page numbers kept, headings found, index lines skipped', async () => {
+  const { pdfParagraphs, toSections } = await import('../src/docs.mjs');
+  const footer = '© 2025 Oklahoma Municipal League, Inc.';
+  const pages = [
+    `${footer}\nB - 8\nNEPOTISM\nNo officer may appoint a relative within the third degree to any position in the\nmunicipality. This is a long line of ordinary body text that keeps going for a while.\nShort end.\nAnother paragraph starts here and it is long enough to look like body text in the PDF and`,
+    `B - 9\n${footer}\ncontinues onto the next page without a break, as PDFs do.\nVACANCIES\nVacancies occur by death, resignation or removal of the officer from office, which is set out.`,
+    `${footer}\nB - 10\nIndex\nNepotism ............................ B-8\nVacancies ........................... B-9`,
+    `${footer}\nB - 11\nThe end of the chapter has some closing text that is plain and ordinary for the test.`
+  ];
+  const paras = pdfParagraphs(pages);
+  const texts = paras.map((p) => p.text);
+  assert.ok(!texts.some((t) => /Oklahoma Municipal League|^B - \d/.test(t)), 'footers and page numbers are not content');
+  assert.ok(!texts.some((t) => /\.\.\.\.\./.test(t)), 'index lines are skipped');
+  assert.deepEqual(paras.filter((p) => p.heading).map((p) => p.text), ['NEPOTISM', 'VACANCIES']);
+  const joined = paras.find((p) => p.text.startsWith('Another paragraph'));
+  assert.match(joined.text, /in the PDF and continues onto the next page/, 'a paragraph split across pages is rejoined');
+  assert.equal(joined.page, 'B-8');
+  const secs = toSections({ paras }, { id: 'hb', title: 'Handbook', publisher: 'OML' });
+  assert.match(secs[0].cite, /^OML: Handbook, p\. B-8/);
+  assert.equal(secs[0].heading.startsWith('NEPOTISM'), true);
+});
