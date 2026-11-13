@@ -114,6 +114,17 @@ Resources:
           AllowHeaders: [content-type]
           MaxAge: 86400
 
+  # Since October 2025 a public Function URL needs lambda:InvokeFunction as well as
+  # lambda:InvokeFunctionUrl. SAM adds the URL permission; this adds the other one,
+  # limited to calls that come through the function URL.
+  PipFunctionUrlInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref PipFunction
+      Action: lambda:InvokeFunction
+      Principal: '*'
+      InvokedViaFunctionUrl: true
+
   PipFunctionLogs:
     Type: AWS::Logs::LogGroup
     Properties:
