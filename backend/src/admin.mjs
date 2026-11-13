@@ -5,6 +5,7 @@ import { getConfig, getGuidanceState, saveDraft, discardDraft, publishDraft, res
 import { listDocs, createUpload, processDoc, updateDoc, deleteDoc } from './docs.mjs';
 import { getLibrary, libraryStatus, refreshLibrary } from './library.mjs';
 import { listTurns, getConversation, listContacts, usageStats } from './store.mjs';
+import { analytics } from './analytics.mjs';
 
 const routes = [];
 const on = (method, pattern, fn) => routes.push({ method, re: new RegExp('^' + pattern.replace(/:(\w+)/g, '(?<$1>[A-Za-z0-9_\\-]+)') + '$'), fn });
@@ -15,6 +16,19 @@ on('GET', '/admin/overview', async () => {
   const [stats, library, docs, cfg] = await Promise.all([usageStats({ days: 30 }), libraryStatus(), listDocs(), getConfig({ fresh: true })]);
   return { stats, library, docs: { total: docs.length, enabled: docs.filter((d) => d.enabled).length }, guidance: cfg.guidanceMeta, model: MODELS[cfg.settings.modelId] || cfg.settings.modelId };
 });
+
+on('GET', '/admin/analytics', async ({ query }) => {
+  const [lib, cfg] = await Promise.all([getLibrary(), getConfig({ fresh: true })]);
+  return analytics({
+    days: query.days,
+    labels: (id) => lib.get(id)?.cite,
+    prices: { in: cfg.settings.priceInputPerM, out: cfg.settings.priceOutputPerM }
+  });
+});
+on('GET', '/admin/analytics/export', async ({ query }) => ({
+  turns: (await listTurns({ days: Math.min(Number(query.days) || 30, 366), limit: 20000 }))
+    .map(({ browser, ...t }) => t)
+}));
 
 /* guidance */
 on('GET', '/admin/guidance', async () => getGuidanceState());

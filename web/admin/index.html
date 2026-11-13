@@ -94,6 +94,25 @@ details summary{cursor:pointer;font-weight:600;font-size:14px}
 .bar:hover .tip,.bar:focus .tip{display:block}
 .axis{display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);margin-top:6px}
 
+/* analytics */
+.seg{display:inline-flex;border:1px solid var(--line-2);border-radius:9px;overflow:hidden;background:#fff}
+.seg button{border:none;background:none;min-height:36px;padding:0 13px;font-size:13.5px;font-weight:600;color:var(--ink-2);border-right:1px solid var(--line)}
+.seg button:last-child{border-right:none}
+.seg button[aria-pressed="true"]{background:var(--navy);color:#fff}
+.delta{font-size:12.5px;color:var(--muted);margin-top:2px}
+.delta b{color:var(--ink-2);font-weight:700}
+.blist{display:flex;flex-direction:column;gap:9px}
+.brow{display:grid;grid-template-columns:minmax(0,1fr) 44px;gap:4px 10px;align-items:center;font-size:13.5px}
+.brow .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.brow .n{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.brow .track{grid-column:1 / -1;height:8px;border-radius:4px;background:#eef2f6;overflow:hidden}
+.brow .track i{display:block;height:100%;background:var(--accent);border-radius:4px}
+.chart.small{height:110px}
+.chart.small .bar{min-width:6px}
+.axis.hours span{flex:1;text-align:center}
+.fb{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.fb:last-child{border-bottom:none}
+
 /* chat preview */
 .chat{display:flex;flex-direction:column;gap:12px;max-height:520px;overflow:auto;padding:4px 2px 2px}
 .q{align-self:flex-end;background:var(--accent-bg);border-radius:12px 12px 3px 12px;padding:8px 12px;max-width:88%;font-size:14px}
@@ -165,7 +184,7 @@ details summary{cursor:pointer;font-weight:600;font-size:14px}
   <nav class="side" aria-label="Admin sections">
     <div class="brand"><span id="side-icon" style="display:inline-flex"></span><div><b>Pip admin</b><span>OMAG's HR assistant</span></div></div>
     <div class="nav" id="nav">
-      <button data-page="overview" aria-current="page">Overview</button>
+      <button data-page="analytics" aria-current="page">Analytics</button>
       <button data-page="instructions">Instructions</button>
       <button data-page="documents">OMAG documents</button>
       <button data-page="conversations">Conversations</button>
@@ -183,11 +202,29 @@ details summary{cursor:pointer;font-weight:600;font-size:14px}
     <div class="banner" id="dev-banner" hidden><strong>Local mode.</strong> No sign-in, and changes are kept in memory only until the dev server stops.</div>
 
     <!-- Overview -->
-    <section data-section="overview">
-      <div class="page-head"><div><h1>Overview</h1><p>The last 30 days of member questions. Admin previews aren't counted.</p></div></div>
-      <div class="grid g4" id="ov-stats"></div>
-      <div class="split" style="margin-top:16px">
-        <div class="card"><h2>Questions per day</h2><p class="sub">Last 30 days</p><div id="ov-chart"></div></div>
+    <section data-section="analytics">
+      <div class="page-head">
+        <div><h1>Analytics</h1><p>How members use Pip. Times are Oklahoma time. Admin previews aren't counted. <span id="an-compare"></span></p></div>
+        <div class="row">
+          <div class="seg" role="group" aria-label="Time range" id="an-range">
+            <button data-days="7">7 days</button><button data-days="30" aria-pressed="true">30 days</button><button data-days="90">90 days</button><button data-days="365">12 months</button>
+          </div>
+          <button class="btn" id="an-csv">Download CSV</button>
+        </div>
+      </div>
+      <div class="grid g4" id="an-kpi1"></div>
+      <div class="grid g4" id="an-kpi2" style="margin-top:16px"></div>
+      <div class="card" style="margin-top:16px"><h2 id="an-series-title">Questions per day</h2><p class="sub" id="an-series-sub"></p><div id="an-series"></div></div>
+      <div class="grid g2" style="margin-top:16px">
+        <div class="card"><h2>What members ask about</h2><p class="sub">Topics of the laws Pip cited. A question can cover more than one topic.</p><div id="an-topics"></div></div>
+        <div class="card"><h2>Most-cited sections</h2><p class="sub">Click one to read it.</p><div id="an-sections"></div></div>
+      </div>
+      <div class="grid g2" style="margin-top:16px">
+        <div class="card"><h2>When members ask</h2><p class="sub">By hour of the day</p><div id="an-hours"></div><p class="sub" style="margin:16px 0 8px">By day of the week</p><div id="an-weekdays"></div></div>
+        <div class="card"><h2>Who's asking</h2><p class="sub">Form of government</p><div id="an-forms"></div><p class="sub" style="margin:18px 0 8px" id="an-cities-sub">Municipalities (as typed by members)</p><div id="an-cities"></div></div>
+      </div>
+      <div class="grid g2" style="margin-top:16px">
+        <div class="card"><h2>Recent 👎 answers</h2><p class="sub">Worth reading: these show where Pip's instructions or OMAG documents could help.</p><div id="an-feedback"></div></div>
         <div class="card"><h2>Pip's setup</h2><div id="ov-setup" class="hint" style="font-size:14px;line-height:1.8"></div></div>
       </div>
     </section>
@@ -316,6 +353,11 @@ details summary{cursor:pointer;font-weight:600;font-size:14px}
               <div class="field"><label for="set-global">Questions per day, everyone</label><input class="input" id="set-global" type="number" min="0"></div>
             </div>
             <p class="hint" style="margin:8px 0 0">The daily total is your spending ceiling. Set it to 0 to pause Pip for everyone.</p>
+            <div class="grid g2" style="margin-top:12px;gap:10px">
+              <div class="field"><label for="set-pin">Input price ($ per 1M tokens)</label><input class="input" id="set-pin" type="number" min="0" step="0.01"></div>
+              <div class="field"><label for="set-pout">Output price ($ per 1M tokens)</label><input class="input" id="set-pout" type="number" min="0" step="0.01"></div>
+            </div>
+            <p class="hint" style="margin:8px 0 0">Used only for the cost estimate on the Analytics page. Copy them from the Amazon Bedrock pricing page for your model. Leave 0 to show token counts instead. Your AWS bill is the real number.</p>
           </div>
         </div>
       </div>
@@ -470,7 +512,7 @@ const fail = (e) => { if (e.message !== 'signed out') toast(e.message); };
 
 /* ================= NAV ================= */
 const loaders = {};
-let current = 'overview';
+let current = 'analytics';
 function go(page) {
   current = page;
   $$('#nav button').forEach((b) => (b.getAttribute('aria-current') === 'page' ? b.removeAttribute('aria-current') : 0, b.dataset.page === page && b.setAttribute('aria-current', 'page')));
@@ -482,28 +524,99 @@ function go(page) {
 $('#nav').addEventListener('click', (e) => { const b = e.target.closest('[data-page]'); if (b) go(b.dataset.page); });
 
 /* ================= OVERVIEW ================= */
-loaders.overview = async () => {
-  const o = await api('GET', '/admin/overview');
-  const s = o.stats;
-  const rated = s.up + s.down;
-  $('#ov-stats').innerHTML = [
-    ['Questions', s.questions, `${s.conversations} conversation${s.conversations === 1 ? '' : 's'}`],
-    ['Helpful 👍', s.up, rated ? `${Math.round((s.up / rated) * 100)}% of rated answers` : 'No ratings yet'],
-    ['Not helpful 👎', s.down, s.down ? 'Review in Conversations' : '—'],
-    ['Errors', s.errors, s.errors ? 'See CloudWatch logs' : 'None']
-  ].map(([l, v, h]) => `<div class="card stat"><div class="label">${l}</div><div class="value">${v}</div><div class="hint">${esc(h)}</div></div>`).join('');
-  const days = Object.entries(s.byDay);
-  const max = Math.max(1, ...days.map(([, n]) => n));
-  $('#ov-chart').innerHTML = `<div class="chart" role="img" aria-label="Questions per day for the last 30 days, ${s.questions} total, peak ${max}">${days.map(([d, n]) => `<div class="bar" tabindex="0"><i style="height:${(n / max) * 100}%"></i><span class="tip">${fmtDay(d)}: ${n} question${n === 1 ? '' : 's'}</span></div>`).join('')}</div>
-    <div class="axis"><span>${fmtDay(days[0]?.[0])}</span><span>peak ${max}/day</span><span>${fmtDay(days.at(-1)?.[0])}</span></div>
-    <details style="margin-top:8px"><summary class="hint" style="font-weight:500">Show as table</summary><table style="margin-top:6px"><thead><tr><th>Day</th><th>Questions</th></tr></thead><tbody>${days.filter(([, n]) => n).map(([d, n]) => `<tr><td>${fmtDay(d)}</td><td>${n}</td></tr>`).join('') || '<tr><td colspan="2" class="hint">No questions yet</td></tr>'}</tbody></table></details>`;
+let anDays = 30;
+const num = (n) => (n ?? 0).toLocaleString();
+const secs = (ms) => (ms == null ? '—' : `${(ms / 1000).toFixed(ms < 10000 ? 1 : 0)}s`);
+const RANGE = { 7: 'last 7 days', 30: 'last 30 days', 90: 'last 90 days', 365: 'last 12 months' };
+function delta(cur, prev, { lowerIsBetter = false, unit = '' } = {}) {
+  if (cur == null || prev == null) return '';
+  if (!prev) return cur ? '<div class="delta">New this period</div>' : '';
+  const d = Math.round(((cur - prev) / prev) * 100);
+  if (!d) return '<div class="delta">Same as the previous period</div>';
+  return `<div class="delta"><b>${d > 0 ? '▲' : '▼'} ${Math.abs(d)}%</b> vs previous period${unit}</div>`;
+}
+const tile = (label, value, hint, extra = '') => `<div class="card stat"><div class="label">${label}</div><div class="value">${value}</div>${extra}<div class="hint">${hint}</div></div>`;
+function barList(rows, { empty = 'Nothing yet.', clickable = false } = {}) {
+  if (!rows.length) return `<p class="hint">${empty}</p>`;
+  const max = Math.max(...rows.map((r) => r.n));
+  return `<div class="blist">${rows.map((r) => `<div class="brow">
+      <span class="name" title="${esc(r.title || r.name)}">${clickable && r.id ? citeChip(r.id, r.name) : esc(r.name)}</span><span class="n">${num(r.n)}</span>
+      <span class="track" aria-hidden="true"><i style="width:${Math.max(2, (r.n / max) * 100)}%"></i></span></div>`).join('')}</div>`;
+}
+function columnChart(points, { cls = '', label, axis }) {
+  const max = Math.max(1, ...points.map((p) => p.n));
+  return `<div class="chart ${cls}" role="img" aria-label="${esc(label)}">${points.map((p) => `<div class="bar" tabindex="0"><i style="height:${(p.n / max) * 100}%"></i><span class="tip">${esc(p.tip)}</span></div>`).join('')}</div>${axis}`;
+}
+const hourLabel = (h) => (h === 0 ? '12am' : h < 12 ? `${h}am` : h === 12 ? '12pm' : `${h - 12}pm`);
+
+async function loadAnalytics() {
+  $$('#an-range button').forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.days) === anDays)));
+  const [a, o] = await Promise.all([api('GET', `/admin/analytics?days=${anDays}`), api('GET', '/admin/overview')]);
+  const t = a.totals, p = a.previous;
+  $('#an-compare').textContent = `Showing the ${RANGE[a.days]}; changes are compared with the ${a.days === 365 ? '12 months' : a.days + ' days'} before that.`;
+
+  $('#an-kpi1').innerHTML = [
+    tile('Questions', num(t.questions), `${num(t.conversations)} conversation${t.conversations === 1 ? '' : 's'} · ${t.perConversation ?? '—'} per conversation`, delta(t.questions, p.questions)),
+    tile('People', num(t.people), 'Different browsers that asked. Approximate: no accounts', delta(t.people, p.people)),
+    tile('Helpful', t.helpfulPct == null ? '—' : `${t.helpfulPct}%`, t.rated ? `${num(t.up)} 👍 · ${num(t.down)} 👎 · ${t.ratedPct}% of answers rated` : 'No ratings yet'),
+    tile('Response time', secs(t.latencyMedianMs), t.latencyP90Ms ? `Typical answer. 9 in 10 finish within ${secs(t.latencyP90Ms)}` : 'Typical answer')
+  ].join('');
+  const costTile = t.estimatedCost != null
+    ? tile('Estimated cost', `$${t.estimatedCost.toFixed(2)}`, t.questions ? `About $${(t.estimatedCost / t.questions).toFixed(3)} per question` : 'From token use × your prices', delta(t.estimatedCost, p.estimatedCost))
+    : tile('Tokens used', `${(((t.inputTokens || 0) + (t.outputTokens || 0)) / 1e6).toFixed(2)}M`, `${num(t.inputTokens)} in · ${num(t.outputTokens)} out. <a href="#settings" data-goto="settings">Add prices</a> for a cost estimate`);
+  $('#an-kpi2').innerHTML = [
+    costTile,
+    tile('Talk to OMAG', num(t.contacts), t.contacts ? '<a href="#messages" data-goto="messages">Read the messages</a>' : 'Members who asked for OMAG staff'),
+    tile('Answers citing law', t.citedPct == null ? '—' : `${t.citedPct}%`, t.removedCitations ? `${num(t.removedCitations)} had an unverified citation removed` : 'Every citation was verified'),
+    tile('Errors', num(t.errors), t.errors ? `${t.errorPct}% of questions. See CloudWatch logs` : 'None')
+  ].join('');
+
+  const weekly = a.bucket === 'week';
+  $('#an-series-title').textContent = weekly ? 'Questions per week' : 'Questions per day';
+  const peak = Math.max(0, ...a.series.map((x) => x.n));
+  $('#an-series-sub').textContent = `${RANGE[a.days][0].toUpperCase()}${RANGE[a.days].slice(1)} · peak ${peak} per ${weekly ? 'week' : 'day'}`;
+  $('#an-series').innerHTML = columnChart(a.series.map((x) => ({ n: x.n, tip: `${weekly ? 'Week of ' : ''}${fmtDay(x.label)}: ${x.n} question${x.n === 1 ? '' : 's'}` })), {
+    label: `Questions per ${weekly ? 'week' : 'day'}, ${RANGE[a.days]}: ${t.questions} total, peak ${peak}`,
+    axis: `<div class="axis"><span>${fmtDay(a.series[0]?.label)}</span><span>${fmtDay(a.series.at(-1)?.label)}</span></div>`
+  }) + `<details style="margin-top:8px"><summary class="hint" style="font-weight:500">Show as table</summary><table style="margin-top:6px"><thead><tr><th>${weekly ? 'Week of' : 'Day'}</th><th>Questions</th></tr></thead><tbody>${a.series.filter((x) => x.n).map((x) => `<tr><td>${fmtDay(x.label)}</td><td>${x.n}</td></tr>`).join('') || '<tr><td colspan="2" class="hint">No questions yet</td></tr>'}</tbody></table></details>`;
+
+  $('#an-topics').innerHTML = barList(a.topics.map((x) => ({ name: x.name, n: x.n })), { empty: 'No questions yet.' });
+  $('#an-sections').innerHTML = barList(a.sections.map((x) => ({ id: x.id, name: x.cite, n: x.n })), { empty: 'No citations yet.', clickable: true });
+  $('#an-hours').innerHTML = columnChart(a.byHour.map((n, h) => ({ n, tip: `${hourLabel(h)}–${hourLabel((h + 1) % 24)}: ${n}` })), {
+    cls: 'small', label: 'Questions by hour of the day',
+    axis: '<div class="axis"><span>12am</span><span>6am</span><span>12pm</span><span>6pm</span><span>11pm</span></div>'
+  });
+  $('#an-weekdays').innerHTML = barList(Object.entries(a.byWeekday).map(([name, n]) => ({ name: { Mon: 'Monday', Tue: 'Tuesday', Wed: 'Wednesday', Thu: 'Thursday', Fri: 'Friday', Sat: 'Saturday', Sun: 'Sunday' }[name], n })).filter((x) => x.n), { empty: 'No questions yet.' });
+  $('#an-forms').innerHTML = barList(Object.entries(a.forms).sort((x, y) => y[1] - x[1]).map(([k, n]) => ({ name: FORM_LABEL[k] || 'Not selected', n })), { empty: 'No questions yet.' });
+  $('#an-cities-sub').textContent = a.citiesTotal > a.cities.length ? `Top municipalities, of ${a.citiesTotal} named (as typed by members)` : 'Municipalities (as typed by members)';
+  $('#an-cities').innerHTML = barList(a.cities.map((x) => ({ name: x.name, n: x.n })), { empty: 'No member has named their municipality yet.' });
+  $('#an-feedback').innerHTML = a.feedback.length ? a.feedback.map((f) => `<div class="fb"><div><div class="trunc">${esc(f.question)}</div>${f.note ? `<div class="hint">“${esc(f.note)}”</div>` : ''}<div class="hint">${fmtDate(f.at)}${f.city ? ' · ' + esc(f.city) : ''}</div></div><button class="btn sm" data-conv="${esc(f.conversationId)}">Open</button></div>`).join('') : '<p class="hint">No 👎 answers in this period.</p>';
+
   const lib = o.library;
   $('#ov-setup').innerHTML = `
     <div><strong>Model:</strong> ${esc(o.model)}</div>
     <div><strong>Instructions:</strong> ${o.guidance.default ? 'original default' : `published ${fmtDate(o.guidance.publishedAt)} by ${esc(o.guidance.publishedBy)}`}</div>
     <div><strong>Statute library:</strong> ${lib.statuteSections.toLocaleString()} sections, built ${fmtDay(String(lib.builtAt).slice(0, 10))}</div>
     <div><strong>OMAG documents:</strong> ${o.docs.enabled} on${o.docs.total > o.docs.enabled ? `, ${o.docs.total - o.docs.enabled} off` : ''} (${lib.omagSections} sections)</div>`;
-};
+}
+loaders.analytics = loadAnalytics;
+$('#an-range').addEventListener('click', (e) => { const b = e.target.closest('[data-days]'); if (!b) return; anDays = Number(b.dataset.days); loadAnalytics().catch(fail); });
+$('#an-feedback').addEventListener('click', (e) => { const b = e.target.closest('[data-conv]'); if (b) openConversation(b.dataset.conv); });
+document.addEventListener('click', (e) => { const g = e.target.closest('[data-goto]'); if (g) { e.preventDefault(); go(g.dataset.goto); } });
+$('#an-csv').addEventListener('click', async (e) => {
+  const btn = e.currentTarget; btn.disabled = true;
+  try {
+    const { turns: rows } = await api('GET', `/admin/analytics/export?days=${anDays}`);
+    const cols = [['at', 'When (UTC)'], ['conversationId', 'Conversation'], ['city', 'Municipality'], ['form', 'Form of government'], ['question', 'Question'], ['answer', 'Answer'], ['citations', 'Citations'], ['rating', 'Rating'], ['ratingNote', 'Rating note'], ['latencyMs', 'Response time (ms)'], ['inputTokens', 'Input tokens'], ['outputTokens', 'Output tokens'], ['model', 'Model'], ['unread', 'Removed citations'], ['error', 'Error']];
+    const cell = (v) => { v = Array.isArray(v) ? v.join('; ') : v ?? ''; v = String(v); if (/^[=+\-@]/.test(v)) v = "'" + v; return /[",\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v; };
+    const csv = '﻿' + [cols.map((c) => c[1]).join(','), ...rows.map((r) => cols.map(([k]) => cell(k === 'form' ? FORM_LABEL[r.form] || r.form : r[k])).join(','))].join('\r\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = `pip-questions-${new Date().toISOString().slice(0, 10)}-${RANGE[anDays].replace(/ /g, '-')}.csv`;
+    a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    toast(`Downloaded ${rows.length} question${rows.length === 1 ? '' : 's'}.`);
+  } catch (err) { fail(err); } finally { btn.disabled = false; }
+});
 
 /* ================= INSTRUCTIONS ================= */
 let ins = null;
@@ -726,6 +839,7 @@ loaders.settings = async () => {
   const r = await api('GET', '/admin/settings'); settings = r.settings;
   $('#set-welcome').value = settings.welcomeText; $('#set-disclaimer').value = settings.disclaimer; $('#set-phone').value = settings.contactPhone;
   $('#set-ip').value = settings.dailyLimitPerIp; $('#set-global').value = settings.dailyLimitGlobal;
+  $('#set-pin').value = settings.priceInputPerM || 0; $('#set-pout').value = settings.priceOutputPerM || 0;
   const models = { ...r.models }; if (!models[settings.modelId]) models[settings.modelId] = settings.modelId;
   $('#set-model').innerHTML = Object.entries(models).map(([id, label]) => `<option value="${esc(id)}" ${id === settings.modelId ? 'selected' : ''}>${esc(label)}</option>`).join('');
   $('#set-starters').innerHTML = settings.starters.map(starterRow).join('');
@@ -737,7 +851,8 @@ $('#set-save').addEventListener('click', async () => {
     const starters = $$('.starter').map((r) => ({ kicker: $('[data-k=kicker]', r).value, text: $('[data-k=text]', r).value, doc: $('[data-k=doc]', r).checked }));
     await api('PUT', '/admin/settings', {
       welcomeText: $('#set-welcome').value, disclaimer: $('#set-disclaimer').value, contactPhone: $('#set-phone').value,
-      starters, dailyLimitPerIp: Number($('#set-ip').value), dailyLimitGlobal: Number($('#set-global').value), modelId: $('#set-model').value
+      starters, dailyLimitPerIp: Number($('#set-ip').value), dailyLimitGlobal: Number($('#set-global').value), modelId: $('#set-model').value,
+      priceInputPerM: Number($('#set-pin').value || 0), priceOutputPerM: Number($('#set-pout').value || 0)
     });
     await loaders.settings(); toast('Settings saved. Members see them within a minute.');
   } catch (e) { fail(e); }
@@ -797,8 +912,8 @@ async function startApp() {
     const recent = contacts.filter((c) => Date.now() - new Date(c.at) < 7 * 86400000).length;
     $('#msg-count').hidden = !recent; $('#msg-count').textContent = recent;
   }).catch(() => {});
-  const start = location.hash.slice(1);
-  go(loaders[start] ? start : 'overview');
+  const start = location.hash.slice(1).replace(/^overview$/, 'analytics');
+  go(loaders[start] ? start : 'analytics');
 }
 
 (async function init() {

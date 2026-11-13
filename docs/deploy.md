@@ -100,6 +100,7 @@ Most changes are made in the admin panel and take effect within a minute, with n
 |---|---|
 | Change how Pip answers (tone, standing rules, when to send members to OMAG) | **Instructions**: edit the draft, try it in the preview, then **Publish**. Every published version is kept; **Version history → Load into draft** rolls back. |
 | Give Pip OMAG guidance to cite (memos, FAQs, sample policies) | **OMAG documents**: upload a PDF, Word (.docx) or text file. Switch a document off to stop Pip using it without deleting it. Scanned PDFs need OCR first. |
+| See usage: questions over time, topics, most-cited laws, busy hours, municipalities, helpful rate, response time, cost; download everything as CSV | **Analytics** (set the Bedrock token prices under **Settings** to see a cost estimate) |
 | Read what members asked, and see 👎 answers | **Conversations** |
 | Read "Talk to OMAG" messages | **Talk to OMAG** (also emailed to ContactEmail) |
 | Change the welcome text, starter questions, disclaimer, phone, model or daily limits | **Settings** |

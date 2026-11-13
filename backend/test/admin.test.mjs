@@ -166,3 +166,42 @@ test('library refresh: newer library goes live, older or broken ones are ignored
     assert.match(stream.result().body, /up to date/);
   } finally { globalThis.fetch = realFetch; }
 });
+
+test('analytics: totals, topics, cited sections, cities and comparison period', async () => {
+  for (const [i, city] of ['Edmond', ' edmond ', 'Guthrie'].entries()) {
+    await call('POST', '/chat', { body: { conversationId: `conv_an_${i}`, browserId: `b${i % 2}`, form: 'cm', city, messages: [{ role: 'user', text: 'city manager remove employees' }] } });
+  }
+  const a = (await call('GET', '/admin/analytics', { query: { days: '7' } })).json;
+  assert.equal(a.days, 7);
+  assert.ok(a.totals.questions >= 3);
+  assert.ok(a.totals.people >= 2);
+  assert.equal(a.series.length, 7);
+  assert.equal(a.byHour.length, 24);
+  assert.equal(a.byHour.reduce((x, y) => x + y, 0), a.totals.questions);
+  const edmond = a.cities.find((c) => c.name.toLowerCase() === 'edmond');
+  assert.equal(edmond.name, 'Edmond', 'prefers the capitalized spelling');
+  assert.ok(edmond && edmond.n >= 2, 'city names are grouped ignoring case and spaces');
+  assert.ok(a.topics.length >= 1);
+  assert.ok(a.sections.every((s) => s.cite && s.n >= 1));
+  assert.equal(a.totals.estimatedCost, null, 'no cost estimate until prices are set');
+  await call('PUT', '/admin/settings', { body: { priceInputPerM: 1.5, priceOutputPerM: 6 } });
+  const b = (await call('GET', '/admin/analytics', { query: { days: '30' } })).json;
+  assert.equal(b.series.length, 30);
+  assert.equal(typeof b.totals.estimatedCost, 'number');
+  const y = (await call('GET', '/admin/analytics', { query: { days: '365' } })).json;
+  assert.equal(y.bucket, 'week');
+  const ex = (await call('GET', '/admin/analytics/export', { query: { days: '7' } })).json;
+  assert.ok(ex.turns.length >= 3 && ex.turns.every((t) => !('browser' in t)));
+});
+
+test('topicOf groups sections into plain-language topics', async () => {
+  const { topicOf } = await import('../src/analytics.mjs');
+  assert.equal(topicOf('29-CFR-825.104'), 'FMLA leave');
+  assert.equal(topicOf('29-CFR-541.100'), 'Wages & hours (FLSA)');
+  assert.equal(topicOf('25-307'), 'Open meetings');
+  assert.equal(topicOf('51-24A.5'), 'Open records');
+  assert.equal(topicOf('51-155'), 'Tort claims & liability');
+  assert.equal(topicOf('11-51-102'), 'Police & fire bargaining');
+  assert.equal(topicOf('11-12-106'), 'Municipal authority (Title 11)');
+  assert.equal(topicOf('omag-memo-ab12-0'), 'OMAG guidance');
+});

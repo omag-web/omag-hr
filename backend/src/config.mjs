@@ -31,7 +31,11 @@ export function defaultSettings() {
     contactPhone: '1-800-234-9461',
     dailyLimitPerIp: Number(process.env.DAILY_LIMIT_PER_IP || 60),
     dailyLimitGlobal: Number(process.env.DAILY_LIMIT_GLOBAL || 600),
-    modelId: process.env.MODEL_ID || 'us.openai.gpt-5.6-terra'
+    modelId: process.env.MODEL_ID || 'us.openai.gpt-5.6-terra',
+    // Bedrock price in US dollars per million tokens, for the cost estimate on the Analytics page.
+    // 0 means "not set": the page shows token counts only.
+    priceInputPerM: 0,
+    priceOutputPerM: 0
   };
 }
 
@@ -131,6 +135,13 @@ export async function saveSettings(input, by) {
       const n = Math.round(Number(input[k]));
       if (!Number.isFinite(n) || n < 0 || n > 100000) throw Object.assign(new Error(`${k} must be a number between 0 and 100,000.`), { status: 400 });
       s[k] = n;
+    }
+  }
+  for (const k of ['priceInputPerM', 'priceOutputPerM']) {
+    if (k in input) {
+      const n = Number(input[k] || 0);
+      if (!Number.isFinite(n) || n < 0 || n > 1000) throw Object.assign(new Error('Prices must be dollars per million tokens, between 0 and 1,000.'), { status: 400 });
+      s[k] = Math.round(n * 10000) / 10000;
     }
   }
   if ('modelId' in input) {
