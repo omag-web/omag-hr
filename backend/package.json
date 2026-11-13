@@ -26,6 +26,6 @@
     "docxtemplater": "^3.71.1",
     "mammoth": "^1.13.0",
     "pizzip": "^3.3.0",
-    "unpdf": "^1.9.1"
+    "unpdf": "^2.1.0"
   }
 }
