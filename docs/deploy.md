@@ -98,6 +98,8 @@ To add a title, section range or CFR part, edit `knowledge/sources.json`. The `_
 
 **Reading conversations.** DynamoDB → Tables → `pip-hr-PipTable-…` → Explore items. Each answered question is one item: `pk` = `CONV#<conversation>`, with question, answer, citations, rating, tokens and form of government. "Talk to OMAG" messages are under `pk` = `CONTACT#<date>`. Items delete themselves after `RetentionDays`.
 
+**403 Forbidden from the API URL.** The function's resource policy needs both `lambda:InvokeFunctionUrl` and `lambda:InvokeFunction`; the template adds both. In the Lambda console → the function → **Configuration → Permissions → Resource-based policy statements**, you should see two statements allowing `*`. Also check that the page's origin is listed in `AllowedOrigins` (a CORS error shows in the browser console, not as a 403).
+
 **Errors.** CloudWatch → Log groups → `/aws/lambda/pip-hr-PipFunction-…`. ContactEmail gets an alarm if the function errors 5+ times in an hour.
 
 **Taking it offline.** Set `DailyLimitGlobal` to 0 and redeploy (members see a "daily limit" message), or delete the stack with `sam delete`.
