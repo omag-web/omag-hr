@@ -23,9 +23,10 @@ export function parseOklahomaText(text, { title, name, url }) {
     // A heading can start mid-line, right after the previous section's history note:
     //   "...Laws 1977, c. 256, § 22-101, eff. July 1, 1978. §11-22-101.1. Political activities..."
     // Split there so it becomes its own section (only for headings in this title, after a period).
-    .flatMap((l) => l.split(new RegExp(`(?<=[.)\\]])\\s+(?=§\\s*${String(title).replace(/[^0-9A-Z]/gi, '')}-[0-9A-Za-z.\\-]*[0-9A-Za-z]\\.\\s+[A-Z])`)));
+    .flatMap((l) => l.split(new RegExp(`(?<=[.)\\]])\\s*(?=§\\s*${String(title).replace(/[^0-9A-Z]/gi, '')}-[0-9A-Za-z.\\-]*[0-9A-Za-z]\\.(?:\\s+[A-Z]|\\s*$))`)));
 
-  const HEAD = /^\s*§\s*(\d+[A-Z]?-[0-9A-Za-z.\-]*[0-9A-Za-z])\.\s+(.*)$/;
+  // The heading text can follow the number, or be on a later line ("§11-8-106." then "Nepotism...").
+  const HEAD = /^\s*§\s*(\d+[A-Z]?-[0-9A-Za-z.\-]*[0-9A-Za-z])\.(?:\s+(.*))?\s*$/;
   const sections = [];
   let cur = null;
 
@@ -33,7 +34,7 @@ export function parseOklahomaText(text, { title, name, url }) {
     const m = line.match(HEAD);
     if (m) {
       if (cur) sections.push(cur);
-      cur = { id: m[1], heading: m[2].trim(), body: [] };
+      cur = { id: m[1], heading: (m[2] || '').trim(), body: [] };
       continue;
     }
     if (cur) cur.body.push(line);
@@ -55,6 +56,11 @@ function finishOklahomaSection(s, { title, name, url }) {
   // pull following non-empty lines in until it does (max 2).
   let heading = s.heading;
   const body = [...s.body];
+  // Number alone on its line: the heading is the next non-empty line.
+  if (!heading) {
+    while (body.length && !body[0].trim()) body.shift();
+    heading = (body.shift() || '').trim();
+  }
   for (let i = 0; i < 2 && !/[.)]$/.test(heading) && body.length; i++) {
     const next = body.shift().trim();
     if (!next) break;

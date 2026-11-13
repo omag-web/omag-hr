@@ -144,3 +144,29 @@ test('a heading that starts mid-line after a history note becomes its own sectio
   assert.ok(!secs.find((s) => s.id === '11-22-101').text.includes('Political activities'), 'not glued onto the previous section');
   assert.match(secs.find((s) => s.id === '11-22-101.2').text, /as provided in §11-22-101\.1 of this title/, 'cross-references in the body are left alone');
 });
+
+test('a section number alone on its line takes the next line as its heading', () => {
+  const text = [
+    '§11-8-105. Bonds.',
+    'The governing body shall pay the premiums on such bonds.',
+    'Laws 1977, c. 256, § 8-105, eff. July 1, 1978; Laws 1992, c. 371, § 1, eff. July 1, 1992.',
+    '§11-8-106.',
+    '',
+    'Nepotism - Dual office holding.',
+    '',
+    'No elected or appointed official or other person shall appoint a relative.',
+    'See §11-8-106.1 and §11-8-106 of this title.',
+    'Laws 1977, c. 256, § 8-106.',
+    'Laws 1977, c. 256, § 8-107.§11-9-108.',
+    'Powers vested in council - Designated powers.',
+    'Except as otherwise provided, the council has the powers listed.'
+  ].join('\n');
+  const secs = parseOklahomaText(text, { title: '11', name: 'Cities and Towns', url: 'x' });
+  assert.deepEqual(secs.map((s) => s.id).sort(), ['11-8-105', '11-8-106', '11-9-108']);
+  const nep = secs.find((s) => s.id === '11-8-106');
+  assert.equal(nep.heading, 'Nepotism - Dual office holding');
+  assert.match(nep.text, /shall appoint a relative/);
+  assert.match(nep.text, /See §11-8-106\.1 and §11-8-106 of this title/, 'cross-references stay in the body');
+  assert.ok(!secs.find((s) => s.id === '11-8-105').text.includes('Nepotism'));
+  assert.equal(secs.find((s) => s.id === '11-9-108').heading, 'Powers vested in council - Designated powers');
+});
