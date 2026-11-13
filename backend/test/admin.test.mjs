@@ -245,3 +245,34 @@ test('PDF pages: footers dropped, printed page numbers kept, headings found, ind
   assert.match(secs[0].cite, /^OML: Handbook, p\. B-8/);
   assert.equal(secs[0].heading.startsWith('NEPOTISM'), true);
 });
+
+test('admins: invite, resend, turn off and on, remove; can’t lock yourself or everyone out', async () => {
+  const { _resetLocal } = await import('../src/admins.mjs');
+  _resetLocal();
+  let r = (await call('GET', '/admin/admins')).json;
+  assert.deepEqual(r.admins.map((a) => a.email), ['local-dev']);
+  assert.equal(r.admins[0].you, true);
+
+  assert.equal((await call('POST', '/admin/admins', { body: { email: 'not an email' } })).statusCode, 400);
+  r = (await call('POST', '/admin/admins', { body: { email: ' JSmith@OMAG.org ' } })).json;
+  const js = r.admins.find((a) => a.email === 'jsmith@omag.org');
+  assert.ok(js, 'emails are trimmed and lowercased');
+  assert.equal(js.status, 'FORCE_CHANGE_PASSWORD');
+  assert.equal((await call('POST', '/admin/admins', { body: { email: 'jsmith@omag.org' } })).statusCode, 400, 'no duplicates');
+
+  assert.match((await call('POST', `/admin/admins/${js.username}/resend`)).json.message, /new invitation/);
+
+  const me = r.admins.find((a) => a.you);
+  const self = await call('DELETE', `/admin/admins/${me.username}`);
+  assert.equal(self.statusCode, 400);
+  assert.match(self.json.error, /yourself/);
+  assert.equal((await call('POST', `/admin/admins/${me.username}/disable`)).statusCode, 400);
+
+  r = (await call('POST', `/admin/admins/${js.username}/disable`)).json;
+  assert.equal(r.admins.find((a) => a.username === js.username).enabled, false);
+  assert.equal((await call('POST', `/admin/admins/${js.username}/resend`)).statusCode, 400, 'turned-off admins get no invite');
+  r = (await call('POST', `/admin/admins/${js.username}/enable`)).json;
+  assert.equal(r.admins.find((a) => a.username === js.username).enabled, true);
+  r = (await call('DELETE', `/admin/admins/${js.username}`)).json;
+  assert.ok(!r.admins.some((a) => a.username === js.username));
+});

@@ -90,7 +90,7 @@ The global daily limit already caps spend at a few dollars a day. For a second s
 2. Open the **AdminUrl** (`https://omag-web.github.io/omag-hr/web/admin/`), sign in with your email and the temporary password, and choose your own password (12+ characters, upper- and lowercase letters and a number).
 3. The temporary password expires after 7 days. If it does, ask another admin to resend it (below), or redeploy with a different AdminEmail.
 
-**Adding another admin.** AWS console → **Cognito** → User pools → `pip-hr-admins` → **Users → Create user**: choose *Send an email invitation*, enter their email as both the username and the email, tick *Mark email address as verified*, and choose *Generate a password*. To remove someone, select them and **Delete user** (or **Disable**). To resend an invite, open the user → **Actions → Reset password**.
+**Adding another admin.** In the admin panel, open **Admins**, enter their email and click **Send invite**. The same page resends invites, emails a password-reset code, turns someone's access off (they're signed out within a minute) or removes them. You can't turn off or remove yourself, so there's always at least one admin. Changes are also possible in the AWS console (**Cognito** → User pools → `pip-hr-admins` → Users) if the panel is ever unavailable.
 
 ## Day-to-day
 
@@ -104,6 +104,7 @@ Most changes are made in the admin panel and take effect within a minute, with n
 | Read what members asked, and see 👎 answers | **Conversations** |
 | Read "Talk to OMAG" messages | **Talk to OMAG** (also emailed to ContactEmail) |
 | Change the welcome text, starter questions, disclaimer, phone, model or daily limits | **Settings** |
+| Add, remove or re-invite admins | **Admins** |
 | See or search the statute library, check that its source addresses still work, or change them | **Statute library**: **Check links**, then **Edit sources on GitHub** (steps are on the page) |
 
 Some things are built into the code and can't be changed in the panel: Pip identifies itself as an AI assistant, reads the actual sections before citing them, drops citations it didn't read, and never presents itself as legal counsel.

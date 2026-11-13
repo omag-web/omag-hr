@@ -6,6 +6,7 @@ import { listDocs, createUpload, processDoc, updateDoc, deleteDoc, addWebsite, f
 import { getLibrary, libraryStatus, refreshLibrary, librarySources, checkSources } from './library.mjs';
 import { listTurns, getConversation, listContacts, usageStats } from './store.mjs';
 import { analytics } from './analytics.mjs';
+import { listAdmins, inviteAdmin, resendAccess, setAdminEnabled, removeAdmin } from './admins.mjs';
 
 const routes = [];
 const on = (method, pattern, fn) => routes.push({ method, re: new RegExp('^' + pattern.replace(/:(\w+)/g, '(?<$1>[A-Za-z0-9_\\-]+)') + '$'), fn });
@@ -29,6 +30,15 @@ on('GET', '/admin/analytics/export', async ({ query }) => ({
   turns: (await listTurns({ days: Math.min(Number(query.days) || 30, 366), limit: 20000 }))
     .map(({ browser, ...t }) => t)
 }));
+
+/* admins */
+const withYou = async (admin, extra = {}) => ({ ...extra, you: admin.username, admins: (await listAdmins()).map((u) => ({ ...u, you: u.username === admin.username || u.email === admin.email })) });
+on('GET', '/admin/admins', async ({ admin }) => withYou(admin));
+on('POST', '/admin/admins', async ({ body, admin }) => { const u = await inviteAdmin(body?.email); console.log('admin invited', u.email, 'by', admin.email); return withYou(admin, { message: `Invited ${u.email}. They'll get an email with a temporary password (good for 7 days).` }); });
+on('POST', '/admin/admins/:id/resend', async ({ params, admin }) => withYou(admin, await resendAccess(params.id)));
+on('POST', '/admin/admins/:id/disable', async ({ params, admin }) => { const r = await setAdminEnabled(params.id, false, admin); console.log('admin disabled', params.id, 'by', admin.email); return withYou(admin, r); });
+on('POST', '/admin/admins/:id/enable', async ({ params, admin }) => { const r = await setAdminEnabled(params.id, true, admin); console.log('admin enabled', params.id, 'by', admin.email); return withYou(admin, r); });
+on('DELETE', '/admin/admins/:id', async ({ params, admin }) => { const r = await removeAdmin(params.id, admin); console.log('admin removed', params.id, 'by', admin.email); return withYou(admin, r); });
 
 /* guidance */
 on('GET', '/admin/guidance', async () => getGuidanceState());

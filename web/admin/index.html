@@ -197,6 +197,7 @@ details summary{cursor:pointer;font-weight:600;font-size:14px}
       <button data-page="messages">Talk to OMAG <span class="count" id="msg-count" hidden></span></button>
       <button data-page="settings">Settings</button>
       <button data-page="library">Statute library</button>
+      <button data-page="admins">Admins</button>
     </div>
     <div class="side-foot">
       <span id="who"></span>
@@ -411,6 +412,29 @@ details summary{cursor:pointer;font-weight:600;font-size:14px}
         <div id="lib-results" style="margin-top:12px"></div>
       </div>
     </section>
+    <!-- Admins -->
+    <section data-section="admins" hidden>
+      <div class="page-head"><div><h1>Admins</h1><p>People who can sign in here. Every admin can see and change everything: conversations, messages, instructions, documents and settings.</p></div></div>
+      <div class="split">
+        <div class="card" style="padding:6px 6px 0"><div id="adm-table"></div></div>
+        <div class="grid" style="gap:16px">
+          <form class="card" id="adm-form">
+            <h2>Invite an admin</h2>
+            <p class="sub">They get an email from <span class="mono">no-reply@verificationemail.com</span> with a temporary password, good for 7 days. Tell them to check Junk.</p>
+            <div class="field"><label for="adm-email">Email</label><input class="input" id="adm-email" type="email" autocomplete="off" placeholder="name@omag.org" required></div>
+            <div class="row" style="justify-content:flex-end;margin-top:12px"><button class="btn primary" type="submit" id="adm-invite">Send invite</button></div>
+          </form>
+          <div class="card hint" style="font-size:13.5px;line-height:1.6">
+            <h2 style="color:var(--ink)">What the buttons do</h2>
+            <p style="margin:6px 0"><strong>Resend invite</strong>: for someone who hasn't signed in yet, or whose 7 days ran out. Sends a new temporary password.</p>
+            <p style="margin:6px 0"><strong>Reset password</strong>: for someone who's locked out. Emails them a code; they use "Forgot password?" on the sign-in page.</p>
+            <p style="margin:6px 0"><strong>Turn off</strong>: they can't sign in, and are signed out within a minute. Reversible.</p>
+            <p style="margin:6px 0"><strong>Remove</strong>: deletes their account. To add them back, invite them again.</p>
+            <p style="margin:6px 0">You can't turn off or remove yourself.</p>
+          </div>
+        </div>
+      </div>
+    </section>
   </main>
 </div>
 
@@ -465,6 +489,7 @@ async function cognito(target, body) {
       LimitExceededException: 'Too many attempts. Wait a few minutes and try again.',
       PasswordResetRequiredException: 'You need to reset your password. Click "Forgot password?".'
     }[type] || j.message || 'Sign-in failed.';
+    if (type === 'NotAuthorizedException' && /disabled/i.test(j.message || '')) throw Object.assign(new Error('Your admin access is turned off. Ask another admin if you need it back.'), { type });
     throw Object.assign(new Error(msg), { type });
   }
   return j;
@@ -533,7 +558,8 @@ async function api(method, path, body, retry = true) {
   const r = await fetch(API + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
   if (r.status === 401 && !AUTH.local) {
     if (retry && (await refreshToken())) return api(method, path, body, false);
-    tok.clear(); showLogin('Your session ended. Please sign in again.'); throw new Error('signed out');
+    const j = await r.json().catch(() => ({}));
+    tok.clear(); showLogin(/turned off/.test(j.error || '') ? j.error : 'Your session ended. Please sign in again.'); throw new Error('signed out');
   }
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(j.error || `Request failed (${r.status})`);
@@ -995,6 +1021,59 @@ document.addEventListener('click', async (e) => {
     const s = await r.json();
     openDrawer(s.heading && !s.cite.endsWith(s.heading) ? `${s.cite} — ${s.heading}` : s.cite, `<p class="hint">${esc(s.source || '')}</p>${s.text.split(/\n{2,}/).map((p) => `<p style="line-height:1.6">${esc(p)}</p>`).join('')}${s.url ? `<p><a href="${esc(s.url)}" target="_blank" rel="noopener">${/^(OMAG website|Website)/.test(s.source || '') ? 'Open the web page ↗' : 'Official source ↗'}</a></p>` : ''}`);
   } catch (err) { toast(err.message); }
+});
+
+/* ================= ADMINS ================= */
+const ADM_STATUS = {
+  FORCE_CHANGE_PASSWORD: ['Invited', 'warn', 'Hasn’t signed in yet'],
+  CONFIRMED: ['Active', 'ok', ''],
+  RESET_REQUIRED: ['Password reset sent', 'warn', 'Needs to use “Forgot password?”'],
+  EXTERNAL_PROVIDER: ['Active', 'ok', ''],
+  UNCONFIRMED: ['Invited', 'warn', '']
+};
+function renderAdmins(r) {
+  const rows = r.admins;
+  $('#adm-table').innerHTML = `<table><thead><tr><th>Admin</th><th>Status</th><th></th></tr></thead><tbody>${rows.map((u) => {
+    const [label, tone, note] = !u.enabled ? ['Turned off', 'muted', 'Can’t sign in'] : ADM_STATUS[u.status] || [u.status, 'muted', ''];
+    const invited = u.status === 'FORCE_CHANGE_PASSWORD';
+    const expired = invited && u.updatedAt && Date.now() - new Date(u.updatedAt) > 7 * 86400000;
+    const id = esc(u.username);
+    return `<tr>
+      <td><strong>${esc(u.email)}</strong>${u.you ? ' <span class="pill muted">You</span>' : ''}<div class="hint">Added ${fmtDate(u.createdAt)}</div></td>
+      <td><span class="pill ${expired ? 'bad' : tone}">${expired ? 'Invite expired' : label}</span>${note && !expired ? `<div class="hint" style="margin-top:3px">${note}</div>` : ''}</td>
+      <td style="text-align:right;white-space:nowrap">${u.you ? '' : `
+        ${u.enabled ? `<button class="btn sm" data-adm="resend" data-id="${id}">${invited ? 'Resend invite' : 'Reset password'}</button>` : ''}
+        <button class="btn sm" data-adm="${u.enabled ? 'disable' : 'enable'}" data-id="${id}">${u.enabled ? 'Turn off' : 'Turn on'}</button>
+        <button class="btn sm danger" data-adm="remove" data-id="${id}">Remove</button>`}</td>
+    </tr>`;
+  }).join('')}</tbody></table>`;
+  admins = rows;
+}
+let admins = [];
+loaders.admins = async () => renderAdmins(await api('GET', '/admin/admins'));
+$('#adm-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = $('#adm-email').value.trim(); if (!email) return;
+  if (!/@omag\.org$/i.test(email) && !confirm(`${email} isn't an omag.org address. Admins can read every member conversation. Invite them anyway?`)) return;
+  const btn = $('#adm-invite'); btn.disabled = true;
+  try { const r = await api('POST', '/admin/admins', { email }); renderAdmins(r); $('#adm-email').value = ''; toast(r.message); } catch (err) { fail(err); } finally { btn.disabled = false; }
+});
+$('#adm-table').addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-adm]'); if (!b) return;
+  const u = admins.find((x) => x.username === b.dataset.id); if (!u) return;
+  const act = b.dataset.adm;
+  const ask = {
+    resend: u.status === 'FORCE_CHANGE_PASSWORD' ? `Send ${u.email} a new invitation? Their old temporary password stops working.` : `Email ${u.email} a password-reset code? Their current password stops working until they choose a new one.`,
+    disable: `Turn off ${u.email}'s access? They'll be signed out within a minute. You can turn it back on later.`,
+    enable: null,
+    remove: `Remove ${u.email}? Their account is deleted; to add them back, invite them again.`
+  }[act];
+  if (ask && !confirm(ask)) return;
+  b.disabled = true;
+  try {
+    const path = act === 'remove' ? ['DELETE', `/admin/admins/${encodeURIComponent(u.username)}`] : ['POST', `/admin/admins/${encodeURIComponent(u.username)}/${act}`];
+    const r = await api(...path); renderAdmins(r); toast(r.message);
+  } catch (err) { fail(err); b.disabled = false; }
 });
 
 /* ================= START ================= */
