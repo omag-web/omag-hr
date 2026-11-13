@@ -3,6 +3,7 @@
 // tests and `npm run dev:mock`, so the whole app can run without AWS.
 
 import { BedrockRuntimeClient, ConverseStreamCommand } from '@aws-sdk/client-bedrock-runtime';
+import { NodeHttpHandler } from '@smithy/node-http-handler';
 
 let client;
 let cacheUnsupported = false;   // set if the model rejects prompt-cache breakpoints
@@ -41,7 +42,12 @@ export function buildRequest({ modelId, system, messages, tools, maxTokens }) {
 export async function converseTurn({ system, messages, tools, onText, modelId = process.env.MODEL_ID, maxTokens }) {
   if ((process.env.MODEL_MODE || '').toLowerCase() === 'mock') return mockTurn({ messages, onText });
 
-  client ||= new BedrockRuntimeClient({});
+  // Plain HTTP/1.1 rather than the SDK's HTTP/2 default: ConverseStream works the
+  // same either way, and HTTP/1.1 also gets through office firewalls that inspect
+  // HTTPS traffic (they often break HTTP/2 with "Protocol error").
+  client ||= new BedrockRuntimeClient({
+    requestHandler: new NodeHttpHandler({ connectionTimeout: 10_000, requestTimeout: 120_000 })
+  });
   let res;
   try {
     res = await client.send(new ConverseStreamCommand(buildRequest({ modelId, system, messages, tools, maxTokens })));
