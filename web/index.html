@@ -350,7 +350,7 @@ svg{flex:none}
           </div>
         </div>
         <p class="disclaimer" id="disclaimer">Answers are general information, not legal advice. For your specific situation, consult your municipal attorney or OMAG Legal Services.</p>
-        <p class="disclaimer privacy-note">Please leave out names, ID numbers and medical details. Conversations are saved to help OMAG improve Pip.</p>
+        <p class="disclaimer privacy-note">Please leave out names, ID numbers and medical details.</p>
       </form>
     </div>
   </div>
@@ -673,7 +673,7 @@ function renderRecent() {
   const box = $('#recent-list');
   box.innerHTML = list.length
     ? list.slice(0, 12).map((c) => `<button type="button" class="side-item${c.id === conv.id ? ' active' : ''}" data-conv="${esc(c.id)}"><span class="side-text">${esc(c.title || 'Conversation')}</span></button>`).join('')
-    : `<p class="side-empty">Your conversations are saved in this browser only.</p>`;
+    : `<p class="side-empty">Your recent conversations will appear here.</p>`;
 }
 function closeSidebar() { $('#sidebar').classList.remove('open'); }
 function setActive(id) { document.querySelectorAll('[data-conv]').forEach((b) => b.classList.toggle('active', b.dataset.conv === id)); }
@@ -1091,7 +1091,7 @@ function sendWithPrivacyCheck(q) {
   shown += esc(q.slice(at));
   const onlySoft = finds.every((f) => !f.hard);
   openModal('Leave out personal details?', `<div style="display:flex;flex-direction:column;gap:12px;font-size:15px;line-height:1.55">
-      <p style="margin:0">Your message looks like it includes <strong>${esc(list)}</strong>. Pip doesn't need personal details to answer, and conversations are saved, so it's best to leave them out.</p>
+      <p style="margin:0">Your message looks like it includes <strong>${esc(list)}</strong>. Pip doesn't need personal details to answer, so it's best to leave them out.</p>
       <div class="privacy-quote">${shown}</div>
       ${onlySoft ? '' : '<p style="margin:0;font-size:13.5px;color:var(--muted)">ID numbers, account numbers and birth dates are always removed before your message is saved or sent to the AI.</p>'}
     </div>`,
