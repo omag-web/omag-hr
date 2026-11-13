@@ -32,10 +32,42 @@ export const TOOL_SPECS = [
   }
 ];
 
+/** Offered only when OMAG has document templates turned on. */
+export const OFFER_DOCUMENT_SPEC = {
+  toolSpec: {
+    name: 'offer_document',
+    description: 'Show the member a button to build one of OMAG’s document templates (a filled-in Word file). Use it when the member asks you to create, draft, write or update a policy or document that matches a template, or when one would clearly help. Do not write the document text yourself when a template exists. You may pass answers the member already told you.',
+    inputSchema: {
+      json: {
+        type: 'object',
+        properties: {
+          template_id: { type: 'string', description: 'The template id from the list in your instructions.' },
+          prefill: { type: 'object', description: 'Optional answers the member already gave, keyed by field name (e.g. {"municipality_name": "Town of Ada"}). Only include facts the member stated.', additionalProperties: { type: ['string', 'number', 'boolean'] } }
+        },
+        required: ['template_id']
+      }
+    }
+  }
+};
+
 const MAX_SECTION_CHARS = 9000;
 
 /** Runs a tool call. Returns { result, status, ids } where ids are sections the model has now seen. */
-export function runTool(name, input, library) {
+export function runTool(name, input, library, ctx = {}) {
+  if (name === 'offer_document') {
+    const t = (ctx.templates || []).find((x) => x.id === String(input?.template_id || ''));
+    if (!t) return { status: 'Finding a document template', ids: [], result: { error: 'No template with that id. Use an id from the list.' } };
+    const keys = new Set(t.fields.map((f) => f.key));
+    const prefill = {};
+    for (const [k, v] of Object.entries(input?.prefill && typeof input.prefill === 'object' ? input.prefill : {})) {
+      if (keys.has(k) && ['string', 'number', 'boolean'].includes(typeof v)) prefill[k] = typeof v === 'string' ? v.slice(0, 500) : v;
+    }
+    ctx.offers?.push({ templateId: t.id, title: t.title, prefill });
+    return {
+      status: `Getting the ${t.title} ready`, ids: [],
+      result: { shown: true, title: t.title, message: 'A “Build this document” button is now shown below your answer. Briefly tell the member what the document is and that they’ll answer a few questions, then download the Word file. Mention anything they should decide first. Don’t repeat the questions.' }
+    };
+  }
   if (name === 'search_law') {
     const q = String(input?.query || '').slice(0, 300);
     const j = ['OK', 'US', 'OMAG'].includes(input?.jurisdiction) ? input.jurisdiction : undefined;

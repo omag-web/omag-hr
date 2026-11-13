@@ -113,6 +113,20 @@ details summary{cursor:pointer;font-weight:600;font-size:14px}
 .fb{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
 .fb:last-child{border-bottom:none}
 
+/* templates */
+.tpl-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:start;padding:14px 4px;border-bottom:1px solid var(--line)}
+.tpl-row:last-child{border-bottom:none}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:999px;background:#eef1f4;color:var(--ink-2);font-size:12px;font-weight:600}
+.chip.on{background:var(--accent-bg);color:var(--accent-dk)}
+.tq{border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;background:#fff}
+.tq .full{grid-column:1 / -1}.tq .half{grid-column:span 2}
+.tq-head{grid-column:1 / -1;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.tq-key{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;color:var(--accent-dk);background:var(--accent-bg);border-radius:6px;padding:2px 7px}
+.tq.unused{opacity:.65;border-style:dashed}
+.files td,.files th{padding:8px 10px}
+.syntax code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;background:#f1f4f7;border-radius:5px;padding:1px 5px}
+@media (max-width:980px){.tq{grid-template-columns:1fr 1fr}.tq .half{grid-column:1 / -1}}
 /* chat preview */
 .chat{display:flex;flex-direction:column;gap:12px;max-height:520px;overflow:auto;padding:4px 2px 2px}
 .q{align-self:flex-end;background:var(--accent-bg);border-radius:12px 12px 3px 12px;padding:8px 12px;max-width:88%;font-size:14px}
@@ -193,6 +207,7 @@ details summary{cursor:pointer;font-weight:600;font-size:14px}
       <button data-page="analytics" aria-current="page">Analytics</button>
       <button data-page="instructions">Instructions</button>
       <button data-page="documents">OMAG documents</button>
+      <button data-page="templates">Document templates</button>
       <button data-page="conversations">Conversations</button>
       <button data-page="messages">Talk to OMAG <span class="count" id="msg-count" hidden></span></button>
       <button data-page="settings">Settings</button>
@@ -231,9 +246,10 @@ details summary{cursor:pointer;font-weight:600;font-size:14px}
         <div class="card"><h2>Who's asking</h2><p class="sub">Form of government</p><div id="an-forms"></div><p class="sub" style="margin:18px 0 8px" id="an-cities-sub">Municipalities (as typed by members)</p><div id="an-cities"></div></div>
       </div>
       <div class="grid g2" style="margin-top:16px">
+        <div class="card"><h2>Documents built</h2><p class="sub" id="an-docs-sub">From OMAG's templates</p><div id="an-docs"></div></div>
         <div class="card"><h2>Recent 👎 answers</h2><p class="sub">Worth reading: these show where Pip's instructions or OMAG documents could help.</p><div id="an-feedback"></div></div>
-        <div class="card"><h2>Pip's setup</h2><div id="ov-setup" class="hint" style="font-size:14px;line-height:1.8"></div></div>
       </div>
+      <div class="card" style="margin-top:16px"><h2>Pip's setup</h2><div id="ov-setup" class="hint" style="font-size:14px;line-height:1.8"></div></div>
     </section>
 
     <!-- Instructions -->
@@ -342,6 +358,35 @@ details summary{cursor:pointer;font-weight:600;font-size:14px}
     <section data-section="messages" hidden>
       <div class="page-head"><div><h1>Talk to OMAG</h1><p>Messages members sent with the "Talk to OMAG" button. Each one was also emailed to the contact address.</p></div></div>
       <div id="msg-list" class="grid"></div>
+    </section>
+
+    <!-- Document templates -->
+    <section data-section="templates" hidden>
+      <div id="tpl-list-view">
+        <div class="page-head">
+          <div><h1>Document templates</h1><p>OMAG's Word documents that members fill in and download, such as the personnel policy and FMLA policy. Upload a Word file with <code>{{fields}}</code> where answers go; Pip finds them and asks members those questions. Members see the templates that are switched on.</p></div>
+          <div class="row">
+            <button class="btn" id="tpl-import-btn">Import a template pack</button>
+            <input type="file" id="tpl-import-file" accept=".zip" class="sr-only">
+            <button class="btn" id="tpl-export">Download all (backup)</button>
+            <button class="btn primary" id="tpl-new">New template</button>
+          </div>
+        </div>
+        <div class="card" style="padding:4px 14px"><div id="tpl-table"></div></div>
+        <details class="card" style="margin-top:16px"><summary>How to make or update a template</summary>
+          <div class="syntax hint" style="font-size:13.5px;line-height:1.7;margin-top:8px;color:var(--ink-2)">
+            <p style="margin:0 0 8px">Open the Word file and type a field name in double braces wherever a member's answer should go, for example <code>{{municipality_name}}</code> or <code>{{pay_period}}</code>. Names use lowercase letters, numbers and underscores. Then upload the file here; Pip adds a question for each new field, and you can write the question and help text.</p>
+            <ul style="margin:0;padding-left:18px">
+              <li><code>{{sick_wait_months | words}}</code> prints a number as words (3 → three). Use <code>| Words</code> for a capital letter, <code>| upper</code>, <code>| lower</code> or <code>| title</code> for case.</li>
+              <li><code>{{#offers_comp_time}}</code> … <code>{{/offers_comp_time}}</code> around paragraphs includes them only if the member answers Yes. <code>{{^offers_comp_time}}</code> … <code>{{/offers_comp_time}}</code> includes them only for No. Put these tags on their own lines.</li>
+              <li>Always available without a question: <code>{{form_label}}</code> (e.g. Statutory Town), <code>{{unit}}</code> (Town or City), <code>{{governing_body}}</code>, <code>{{today}}</code>, <code>{{year}}</code>.</li>
+              <li>Upload one file for every form of government, or separate files per form (a Town version and a City version, say). Charter cities get the Council-Manager file if there isn't a Charter one.</li>
+              <li>Unanswered questions print as a blank line (________) so the document can be finished by hand.</li>
+            </ul>
+          </div>
+        </details>
+      </div>
+      <div id="tpl-edit-view" hidden></div>
     </section>
 
     <!-- Settings -->
@@ -647,6 +692,8 @@ async function loadAnalytics() {
   $('#an-forms').innerHTML = barList(Object.entries(a.forms).sort((x, y) => y[1] - x[1]).map(([k, n]) => ({ name: FORM_LABEL[k] || 'Not selected', n })), { empty: 'No questions yet.' });
   $('#an-cities-sub').textContent = a.citiesTotal > a.cities.length ? `Top municipalities, of ${a.citiesTotal} named (as typed by members)` : 'Municipalities (as typed by members)';
   $('#an-cities').innerHTML = barList(a.cities.map((x) => ({ name: x.name, n: x.n })), { empty: 'No member has named their municipality yet.' });
+  $('#an-docs-sub').textContent = `${num(t.documents)} built in the ${RANGE[a.days]}${p.documents != null && (t.documents || p.documents) ? (p.documents ? ` (${t.documents >= p.documents ? '▲' : '▼'} ${Math.abs(Math.round(((t.documents - p.documents) / p.documents) * 100))}% vs previous)` : ' (new this period)') : ''}`;
+  $('#an-docs').innerHTML = barList(a.documents.map((x) => ({ name: x.name, n: x.n })), { empty: 'No documents built yet.' });
   $('#an-feedback').innerHTML = a.feedback.length ? a.feedback.map((f) => `<div class="fb"><div><div class="trunc">${esc(f.question)}</div>${f.note ? `<div class="hint">“${esc(f.note)}”</div>` : ''}<div class="hint">${fmtDate(f.at)}${f.city ? ' · ' + esc(f.city) : ''}</div></div><button class="btn sm" data-conv="${esc(f.conversationId)}">Open</button></div>`).join('') : '<p class="hint">No 👎 answers in this period.</p>';
 
   const lib = o.library;
@@ -916,6 +963,213 @@ loaders.messages = async () => {
     </div>`).join('') : '<div class="card empty">No messages yet.</div>';
 };
 $('#msg-list').addEventListener('click', (e) => { const b = e.target.closest('[data-conv]'); if (b) openConversation(b.dataset.conv); });
+
+/* ================= DOCUMENT TEMPLATES ================= */
+let tplList = [], tplMeta = {}, tplCur = null, tplDirty = false;
+const VARIANT_ORDER = ['all', 'town', 'aldermanic', 'cm', 'strong', 'charter'];
+const TYPE_LABEL = { text: 'Short text', textarea: 'Long text', number: 'Number', date: 'Date', select: 'Choice', yesno: 'Yes / No' };
+const PREFILL_LABEL = { '': 'Nothing', municipality: 'Municipality name', city_name_only: 'Name without “City of”', governing_body: 'Governing body', clerk: 'Clerk title', today: 'Today’s date' };
+function b64Download(b64, filename, type) {
+  const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([bytes], { type })); a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+}
+function renderTplList() {
+  $('#tpl-table').innerHTML = tplList.length ? tplList.map((t) => {
+    const files = VARIANT_ORDER.filter((v) => t.variants[v]);
+    return `<div class="tpl-row">
+      <div><div class="row" style="gap:8px"><strong>${esc(t.title)}</strong>${t.enabled ? '<span class="pill ok">On</span>' : '<span class="pill muted">Off</span>'}</div>
+        <div class="hint" style="margin-top:2px">${esc(t.description || 'No description')}</div>
+        <div class="chips">${files.length ? files.map((v) => `<span class="chip on" title="${esc(t.variants[v].filename)}">${esc(tplMeta.variants?.[v] || v)}</span>`).join('') : '<span class="chip">No Word file yet</span>'}<span class="chip">${t.fields.length} question${t.fields.length === 1 ? '' : 's'}</span></div></div>
+      <div class="row" style="flex-wrap:nowrap"><label class="row hint" style="gap:6px;white-space:nowrap"><input type="checkbox" data-tpl-toggle="${esc(t.id)}" ${t.enabled ? 'checked' : ''}> Members can use it</label><button class="btn sm" data-tpl-edit="${esc(t.id)}">Edit</button></div>
+    </div>`;
+  }).join('') : '<div class="empty">No templates yet. Import OMAG’s template pack, or create one with <strong>New template</strong>.</div>';
+}
+loaders.templates = async () => {
+  if (tplCur && !$('#tpl-edit-view').hidden) return;
+  const r = await api('GET', '/admin/templates');
+  tplList = r.templates; tplMeta = r; renderTplList();
+};
+$('#tpl-table').addEventListener('change', async (e) => {
+  const c = e.target.closest('[data-tpl-toggle]'); if (!c) return;
+  try { await api('PUT', `/admin/templates/${c.dataset.tplToggle}`, { enabled: c.checked }); toast(c.checked ? 'Members can use this template now.' : 'Template switched off.'); await loaders.templates(); }
+  catch (err) { c.checked = !c.checked; fail(err); }
+});
+$('#tpl-table').addEventListener('click', (e) => { const b = e.target.closest('[data-tpl-edit]'); if (b) openTplEditor(b.dataset.tplEdit); });
+$('#tpl-new').addEventListener('click', async () => {
+  const title = prompt('Name of the document (members see this), e.g. “Drug and Alcohol Testing Policy”:'); if (!title?.trim()) return;
+  try { const r = await api('POST', '/admin/templates', { title: title.trim() }); await openTplEditor(r.template.id); } catch (err) { fail(err); }
+});
+$('#tpl-export').addEventListener('click', async (e) => {
+  e.target.disabled = true;
+  try { const r = await api('GET', '/admin/templates-export'); b64Download(r.data, r.filename, 'application/zip'); } catch (err) { fail(err); } finally { e.target.disabled = false; }
+});
+$('#tpl-import-btn').addEventListener('click', () => $('#tpl-import-file').click());
+$('#tpl-import-file').addEventListener('change', async (e) => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  if (!confirm(`Import “${f.name}”? Templates in the pack replace any existing templates with the same name.`)) return;
+  try {
+    const up = await api('POST', '/admin/templates-import/upload');
+    const put = await fetch(up.uploadUrl.startsWith('/') ? location.origin + up.uploadUrl : up.uploadUrl, { method: 'PUT', headers: { 'content-type': up.contentType }, body: f });
+    if (!put.ok) throw new Error('Upload failed. Try again.');
+    const r = await api('POST', '/admin/templates-import', { key: up.key });
+    tplList = r.templates; renderTplList();
+    toast(`Imported ${r.imported.map((x) => x.title).join(', ')}.`);
+  } catch (err) { fail(err); }
+});
+
+/* --- editor --- */
+function optText(opts) { return (opts || []).map((o) => [o.value, o.label !== o.value ? o.label : '', o.text && o.text !== o.label ? o.text : ''].join(' | ').replace(/( \| )+$/, '')).join('\n'); }
+function parseOpts(text) {
+  return String(text || '').split('\n').map((l) => l.trim()).filter(Boolean).map((l) => {
+    const [value, label, ...rest] = l.split('|').map((x) => x.trim());
+    return { value: value.toLowerCase().replace(/[^a-z0-9_-]+/g, '_').replace(/^_|_$/g, '') || value, label: label || value, ...(rest.length && rest.join(' | ') ? { text: rest.join(' | ') } : {}) };
+  });
+}
+function usedIn(key) { return VARIANT_ORDER.filter((v) => tplCur.variants[v]?.tags.includes(key)); }
+function questionHtml(f, i) {
+  const used = usedIn(f.key);
+  return `<div class="tq${used.length ? '' : ' unused'}" data-q="${i}">
+    <div class="tq-head"><div class="row" style="gap:8px"><span class="tq-key">{{${esc(f.key)}}}</span><span class="hint">${used.length ? (used.length === Object.keys(tplCur.variants).length ? 'in every file' : 'in: ' + used.map((v) => esc(tplMeta.variants?.[v] || v)).join(', ')) : 'not in any uploaded file'}</span></div>
+      <div class="row">${i > 0 ? `<button class="icon-btn" type="button" data-q-up="${i}" aria-label="Move up">↑</button>` : ''}${used.length ? '' : `<button class="btn sm danger" type="button" data-q-del="${i}">Remove</button>`}</div></div>
+    <div class="field half"><label>Question members see</label><input class="input" data-k="label" value="${esc(f.label)}"></div>
+    <div class="field"><label>Answer type</label><select class="select" data-k="type">${(tplMeta.fieldTypes || Object.keys(TYPE_LABEL)).map((t) => `<option value="${t}"${t === f.type ? ' selected' : ''}>${TYPE_LABEL[t] || t}</option>`).join('')}</select></div>
+    <div class="field"><label>Section heading</label><input class="input" data-k="group" value="${esc(f.group || '')}" placeholder="e.g. Pay"></div>
+    <div class="field full"><label>Help text</label><textarea data-k="help" rows="2" placeholder="Examples, what it prints as, or a legal note">${esc(f.help || '')}</textarea></div>
+    <div class="field"><label>Default answer</label><input class="input" data-k="default" value="${esc(f.default ?? '')}"></div>
+    <div class="field"><label>Fill in automatically with</label><select class="select" data-k="prefill">${(tplMeta.prefills || Object.keys(PREFILL_LABEL)).map((p) => `<option value="${p}"${p === (f.prefill || '') ? ' selected' : ''}>${PREFILL_LABEL[p] ?? p}</option>`).join('')}</select></div>
+    <div class="field" style="justify-content:flex-end"><label class="row" style="gap:6px;font-weight:600"><input type="checkbox" data-k="required" ${f.required ? 'checked' : ''}> Required</label></div>
+    <div class="field full" ${f.type === 'select' ? '' : 'hidden'} data-opts><label>Choices: one per line, as <span class="mono">value | what members see | text printed in the document</span></label><textarea data-k="options" rows="4" class="mono">${esc(optText(f.options))}</textarea></div>
+  </div>`;
+}
+function readQuestions() {
+  return $$('#tpl-questions .tq').map((el) => {
+    const f = tplCur.fields[Number(el.dataset.q)];
+    const g = (k) => $(`[data-k="${k}"]`, el);
+    const type = g('type').value;
+    const out = { key: f.key, label: g('label').value.trim(), type, group: g('group').value.trim(), help: g('help').value.trim(), prefill: g('prefill').value, required: g('required').checked };
+    const d = g('default').value.trim();
+    if (d !== '') out.default = type === 'number' ? Number(d) : type === 'yesno' ? /^(y|yes|true)$/i.test(d) : d;
+    if (type === 'select') out.options = parseOpts(g('options').value);
+    return out;
+  });
+}
+function renderTplEditor() {
+  const t = tplCur;
+  const filesRows = VARIANT_ORDER.map((v) => {
+    const f = t.variants[v];
+    return `<tr><td style="width:220px"><strong>${esc(tplMeta.variants?.[v] || v)}</strong>${v === 'all' ? '<div class="hint">Used when there isn’t a file for that form</div>' : ''}</td>
+      <td>${f ? `${esc(f.filename)}<div class="hint">${f.tags.length} field${f.tags.length === 1 ? '' : 's'} · uploaded ${fmtDate(f.uploadedAt)}</div>` : '<span class="hint">—</span>'}</td>
+      <td style="text-align:right;white-space:nowrap"><label class="btn sm" style="cursor:pointer">${f ? 'Replace' : 'Upload'}<input type="file" accept=".docx" class="sr-only" data-variant-upload="${v}"></label>${f ? ` <button class="btn sm danger" type="button" data-variant-remove="${v}">Remove</button>` : ''}</td></tr>`;
+  }).join('');
+  $('#tpl-edit-view').innerHTML = `
+    <div class="page-head">
+      <div><button class="btn sm" id="tpl-back">← All templates</button><h1 style="margin-top:10px">${esc(t.title)}</h1><p>${t.enabled ? 'Members can use this template.' : 'Switched off: members don’t see it yet.'}</p></div>
+      <div class="row">
+        <label for="tpl-test-form" class="sr-only">Form of government for the test</label>
+        <select class="select" id="tpl-test-form" style="width:auto">${['town', 'aldermanic', 'cm', 'strong', 'charter'].map((v) => `<option value="${v}">${esc(tplMeta.variants?.[v] || v)}</option>`).join('')}</select>
+        <button class="btn" id="tpl-test">Test with sample answers</button>
+        <button class="btn primary" id="tpl-save">Save</button>
+      </div>
+    </div>
+    <div class="grid" style="gap:16px">
+      <div class="card"><h2>About</h2>
+        <div class="grid g2" style="margin-top:10px;gap:12px">
+          <div class="field"><label for="tpl-title">Title members see</label><input class="input" id="tpl-title" value="${esc(t.title)}"></div>
+          <div class="field"><label for="tpl-order">Order in the list</label><input class="input" id="tpl-order" type="number" min="0" max="99" value="${t.order ?? 99}"></div>
+          <div class="field" style="grid-column:1 / -1"><label for="tpl-desc">Short description</label><input class="input" id="tpl-desc" value="${esc(t.description || '')}" maxlength="400"></div>
+        </div>
+        <label class="row" style="gap:8px;margin-top:12px;font-weight:600"><input type="checkbox" id="tpl-enabled" ${t.enabled ? 'checked' : ''}> Members can use this template</label>
+      </div>
+      <div class="card"><h2>Word files</h2><p class="sub">One file for every form of government, or a separate version for some. Pip reads the <code>{{fields}}</code> in each file.</p><table class="files"><tbody>${filesRows}</tbody></table><div id="tpl-upload-status" class="hint" role="status" style="margin-top:8px"></div></div>
+      <div class="card"><h2>Before you adopt this</h2><p class="sub">Shown above the questions. Put a blank line between notes.</p><textarea id="tpl-notes" rows="6">${esc((t.notes || []).join('\n\n'))}</textarea></div>
+      <div class="card"><h2>Questions</h2><p class="sub">One for each field in the Word files. Members see them in this order, under their section headings.</p><div id="tpl-questions" class="grid" style="gap:10px">${t.fields.length ? t.fields.map(questionHtml).join('') : '<div class="empty">Upload a Word file with {{fields}} and the questions appear here.</div>'}</div></div>
+      <div class="card"><h2>Delete</h2><p class="sub">Removes the template and its Word files. Members lose access right away.</p><button class="btn danger" id="tpl-delete">Delete this template</button></div>
+    </div>`;
+  tplDirty = false;
+}
+async function openTplEditor(id) {
+  try {
+    const r = await api('GET', `/admin/templates/${id}`);
+    tplCur = r.template; tplMeta = { ...tplMeta, ...r };
+    $('#tpl-list-view').hidden = true; $('#tpl-edit-view').hidden = false;
+    renderTplEditor(); window.scrollTo(0, 0);
+  } catch (err) { fail(err); }
+}
+function collectTpl() {
+  return {
+    title: $('#tpl-title').value, description: $('#tpl-desc').value, order: Number($('#tpl-order').value),
+    notes: $('#tpl-notes').value.split(/\n\s*\n/).map((x) => x.replace(/\s*\n\s*/g, ' ').trim()).filter(Boolean),
+    fields: readQuestions(), enabled: $('#tpl-enabled').checked
+  };
+}
+async function saveTpl(quiet) {
+  const r = await api('PUT', `/admin/templates/${tplCur.id}`, collectTpl());
+  tplCur = r.template; renderTplEditor();
+  if (!quiet) toast('Saved. Members see the changes within a minute.');
+}
+const tplEdit = $('#tpl-edit-view');
+tplEdit.addEventListener('input', () => { tplDirty = true; });
+const setUploadStatus = (t) => { const el = $('#tpl-upload-status'); if (el) el.textContent = t; };
+tplEdit.addEventListener('change', async (e) => {
+  if (!e.target.closest('[data-variant-upload]')) tplDirty = true;
+  const typeSel = e.target.closest('[data-k="type"]');
+  if (typeSel) $('[data-opts]', typeSel.closest('.tq')).hidden = typeSel.value !== 'select';
+  const up = e.target.closest('[data-variant-upload]');
+  if (up) {
+    const file = up.files[0]; up.value = ''; if (!file) return;
+    const variant = up.dataset.variantUpload;
+    try {
+      if (tplDirty) await saveTpl(true);
+      setUploadStatus(`Uploading ${file.name}…`);
+      const u = await api('POST', `/admin/templates/${tplCur.id}/upload`, { variant, filename: file.name, size: file.size });
+      const put = await fetch(u.uploadUrl.startsWith('/') ? location.origin + u.uploadUrl : u.uploadUrl, { method: 'PUT', headers: { 'content-type': u.contentType }, body: file });
+      if (!put.ok) throw new Error('Upload failed. Try again.');
+      setUploadStatus(`Reading ${file.name}…`);
+      const r = await api('POST', `/admin/templates/${tplCur.id}/attach`, { variant, key: u.key, filename: file.name });
+      tplCur = r.template; renderTplEditor();
+      setUploadStatus(`✓ ${file.name}: ${r.tags.length} field${r.tags.length === 1 ? '' : 's'} found${r.added.length ? `, ${r.added.length} new question${r.added.length === 1 ? '' : 's'} added below (${r.added.join(', ')}). Write the question text, then Save.` : '.'}`);
+    } catch (err) { setUploadStatus('✗ ' + err.message); }
+  }
+});
+tplEdit.addEventListener('click', async (e) => {
+  const t = e.target;
+  try {
+    if (t.closest('#tpl-back')) {
+      if (tplDirty && !confirm('Leave without saving your changes?')) return;
+      tplCur = null; $('#tpl-edit-view').hidden = true; $('#tpl-list-view').hidden = false; await loaders.templates(); return;
+    }
+    if (t.closest('#tpl-save')) { await saveTpl(); return; }
+    if (t.closest('#tpl-test')) {
+      if (tplDirty) await saveTpl(true);
+      const sample = {};
+      for (const f of tplCur.fields) sample[f.key] = f.default ?? ({ number: 3, date: new Date().toISOString().slice(0, 10), yesno: true, select: f.options?.[0]?.value }[f.type] ?? `[${f.label}]`);
+      if (!tplCur.fields.find((f) => f.key === 'municipality_name')?.default) sample.municipality_name = 'Town of Example';
+      const r = await api('POST', `/admin/templates/${tplCur.id}/test`, { form: $('#tpl-test-form').value, values: sample });
+      b64Download(r.data, r.filename.replace(/\.docx$/, ' (TEST).docx'), 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      toast(`Test file downloaded (${tplMeta.variants?.[r.variant] || r.variant} version). Each answer shows the question in [brackets].`);
+      return;
+    }
+    if (t.closest('#tpl-delete')) {
+      if (!confirm(`Delete “${tplCur.title}” and its Word files? This can’t be undone. (Tip: Download all (backup) first.)`)) return;
+      await api('DELETE', `/admin/templates/${tplCur.id}`); tplCur = null;
+      $('#tpl-edit-view').hidden = true; $('#tpl-list-view').hidden = false; await loaders.templates(); toast('Template deleted.'); return;
+    }
+    const rm = t.closest('[data-variant-remove]');
+    if (rm) {
+      if (!confirm(`Remove the ${tplMeta.variants?.[rm.dataset.variantRemove] || rm.dataset.variantRemove} file?`)) return;
+      if (tplDirty) await saveTpl(true);
+      const r = await api('POST', `/admin/templates/${tplCur.id}/remove-file`, { variant: rm.dataset.variantRemove });
+      tplCur = r.template; renderTplEditor(); return;
+    }
+    const del = t.closest('[data-q-del]');
+    if (del) { const fields = readQuestions(); fields.splice(Number(del.dataset.qDel), 1); tplCur.fields = fields; renderTplEditor(); tplDirty = true; return; }
+    const upq = t.closest('[data-q-up]');
+    if (upq) { const i = Number(upq.dataset.qUp); const fields = readQuestions(); [fields[i - 1], fields[i]] = [fields[i], fields[i - 1]]; tplCur.fields = fields; renderTplEditor(); tplDirty = true; }
+  } catch (err) { fail(err); }
+});
+window.addEventListener('beforeunload', (e) => { if (tplDirty && tplCur) { e.preventDefault(); e.returnValue = ''; } });
 
 /* ================= SETTINGS ================= */
 let settings = null;

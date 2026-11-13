@@ -23,7 +23,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const WEB = join(here, '..', '..', 'web');
 const PORT = Number(process.env.PORT || 8787);
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.json': 'application/json' };
-const API = new Set(['/health', '/config', '/auth-config', '/source', '/chat', '/feedback', '/contact']);
+const API = new Set(['/health', '/config', '/auth-config', '/source', '/chat', '/feedback', '/contact', '/templates', '/templates/fill']);
 
 http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);

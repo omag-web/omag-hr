@@ -43,6 +43,49 @@ export async function checkRateLimit(ip, { perIp = 60, global = 600 } = {}) {
   return { ok: true };
 }
 
+/** Documents built per day: 30 per person, 300 for everyone (each one is cheap; this only stops abuse). */
+export async function checkDocLimit(ip) {
+  if (!TABLE()) return { ok: true };
+  const bump = async (pk, limit) => {
+    try {
+      await db().send(new UpdateCommand({
+        TableName: TABLE(), Key: { pk, sk: '-' },
+        UpdateExpression: 'ADD n :one SET expiresAt = if_not_exists(expiresAt, :exp)',
+        ConditionExpression: 'attribute_not_exists(n) OR n < :lim',
+        ExpressionAttributeValues: { ':one': 1, ':lim': limit, ':exp': epoch(2) }
+      }));
+      return true;
+    } catch (e) { if (e.name === 'ConditionalCheckFailedException') return false; throw e; }
+  };
+  if (!(await bump(`RATE#docs#${day()}`, 300))) return { ok: false, reason: 'Pip has built its limit of documents for today. Please try again tomorrow.' };
+  if (!(await bump(`RATE#docs#ip#${hash(ip)}#${day()}`, 30))) return { ok: false, reason: "You've built today's limit of documents. Please try again tomorrow." };
+  return { ok: true };
+}
+
+/** One row per document built (no answers are stored, only which document, for whom and when). */
+export async function logDocument({ templateId, title, form, city, browserId, ip, blanks, conversationId }) {
+  const at = new Date().toISOString();
+  await kv.put({
+    pk: `DOCFILL#${day()}`, sk: `${at}#${randomBytes(3).toString('hex')}`,
+    gsi1pk: `DOCFILLS#${day()}`, gsi1sk: at,
+    type: 'docfill', at, templateId, title, form: form || undefined, city: city ? String(city).slice(0, 120) : undefined,
+    browser: hash(browserId), ip: hash(ip), blanks: blanks || 0, conversationId: conversationId || undefined,
+    expiresAt: epoch(RETENTION_DAYS())
+  });
+}
+
+/** Documents built in the last `days` days (UTC). */
+export async function listDocumentFills({ days = 30 } = {}) {
+  const out = [];
+  const n = Math.min(Math.max(1, days), 366);
+  for (let i = 0; i < n; i += 10) {
+    const batch = [];
+    for (let j = i; j < Math.min(i + 10, n); j++) batch.push(day(new Date(Date.now() - j * 86400000)));
+    for (const r of await Promise.all(batch.map((d) => kv.queryIndex(`DOCFILLS#${d}`, { limit: 5000 })))) out.push(...r);
+  }
+  return out.map(({ pk, sk, gsi1pk, gsi1sk, ip, expiresAt, ...x }) => x);
+}
+
 export function newTurnId() {
   return `TURN#${new Date().toISOString()}#${randomBytes(3).toString('hex')}`;
 }

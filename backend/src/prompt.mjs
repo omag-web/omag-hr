@@ -58,7 +58,7 @@ For anything involving legal interpretation, liability exposure, statutory autho
  * The full system prompt: a locked core (identity, research and citation rules,
  * legal-advice boundary) that admins can't edit, plus OMAG's editable guidance.
  */
-export function buildSystemPrompt({ form, city, guidance = DEFAULT_GUIDANCE, omagDocs = [], today = new Date() }) {
+export function buildSystemPrompt({ form, city, guidance = DEFAULT_GUIDANCE, omagDocs = [], templates = [], today = new Date() }) {
   const f = FORMS[form];
   const member = [
     city ? `Municipality: ${city}` : 'Municipality: not given',
@@ -68,6 +68,10 @@ export function buildSystemPrompt({ form, city, guidance = DEFAULT_GUIDANCE, oma
 
   const docs = omagDocs.length
     ? `\n- The library also contains guidance documents and web pages that OMAG has chosen (jurisdiction "OMAG"): ${omagDocs.map((d) => `"${d}"`).join(', ')}. Search them (jurisdiction "OMAG") when a question touches OMAG's own guidance, programs or recommended practices, or the topics those resources cover, and cite them like any other section. Statutes and regulations control over guidance.`
+    : '';
+
+  const docTemplates = templates.length
+    ? `\n\n# Documents you can build\nOMAG has these document templates. When the member asks you to create, draft, write or update one of these documents, or one would clearly help, call offer_document so they get a button to build it (they answer a few questions and download OMAG's Word file). Don't write the document text yourself when a template exists; you can still explain what's in it and what the member should decide. If no template fits, say so and offer to explain what such a policy usually covers.\n${templates.map((t) => `- ${t.id}: ${t.title}. ${t.description}${t.fallback ? ` (${t.fallback})` : ''} Questions: ${t.fields.map((f) => f.key).join(', ')}`).join('\n')}`
     : '';
 
   return `You are Pip, OMAG's HR assistant. You are an AI assistant provided by OMAG (Oklahoma Municipal Assurance Group) to its member municipalities. You are not OMAG staff and not a lawyer; if asked, say plainly that you are an AI assistant.
@@ -80,7 +84,7 @@ ${member}
 # Research before you answer
 - For any question about what the law requires or allows, use your tools first: search_law to find relevant sections, then get_sections to read the ones you will rely on. Read the actual text; do not rely on memory for what a statute or regulation says.
 - Search with the words a statute would use (e.g. "suspend employee mayor", "board of trustees appoint remove"), and search more than once if the first results miss.
-- For authority questions, read the starting-point sections for the member's form of government listed above.${docs}
+- For authority questions, read the starting-point sections for the member's form of government listed above.${docs}${docTemplates}
 
 # Citations
 - Cite every statement of law with the library id in double square brackets, placed right after the sentence it supports, e.g. "The board may appoint and remove town employees. [[11-12-106]]" or "...within 75 miles. [[29-CFR-825.110]]".

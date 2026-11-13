@@ -57,6 +57,7 @@ svg{flex:none}
 .topbar-left{display:flex;align-items:center;gap:12px;min-width:0}
 .menu-btn{display:none;width:40px;height:40px;border-radius:8px;border:1px solid var(--line-2);background:#fff;align-items:center;justify-content:center}
 .title{margin:0;font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (min-width:901px){.topbar{flex-wrap:nowrap}.topbar-left{flex:1 1 0;min-width:0}.topbar-left>div{flex:0 1 auto;min-width:0}.gov-control,.topbar-right{flex:none}}
 .subtitle{font-size:12.5px;color:var(--muted)}
 .demo-pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;background:var(--gold-bg);border:1px solid var(--gold-line);color:var(--gold-ink);font-size:12px;font-weight:600;white-space:nowrap}
 .topbar-right{display:flex;gap:8px;align-items:center}
@@ -132,6 +133,23 @@ svg{flex:none}
 .doc-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
 
 /* inline form */
+.doc-offers{display:flex;flex-direction:column;gap:8px}
+.doc-offer{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line-2);border-radius:12px;background:#fbfcfd}
+.doc-offer>svg{flex:none;color:var(--accent)}
+.doc-offer div{flex:1;min-width:0;display:flex;flex-direction:column;font-size:14px}
+.doc-offer span{font-size:12.5px;color:var(--muted)}
+.doc-form .doc-group{border:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.doc-form legend{font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--navy);margin-bottom:8px;padding:0}
+.doc-form .field.full{grid-column:1 / -1}
+.doc-form [aria-invalid="true"]{border-color:var(--bad);box-shadow:0 0 0 3px rgba(180,51,43,.15)}
+.doc-notes{border:1px solid var(--gold-line);background:var(--gold-bg);border-radius:10px;padding:10px 14px;font-size:13.5px;color:#3d3110}
+.doc-notes summary{cursor:pointer;font-weight:700}
+.doc-notes ul{margin:8px 0 2px;padding-left:18px;line-height:1.55;display:flex;flex-direction:column;gap:6px}
+.doc-page.word{font-size:13.5px}
+.doc-page.word h1,.doc-page.word h2{text-align:left}
+.doc-page.word table{border-collapse:collapse;width:100%}
+.doc-page.word td{border:1px solid #ddd;padding:4px 6px;vertical-align:top}
+.side-item span{overflow:hidden;text-overflow:ellipsis}
 .form-card{border:1px solid var(--line-2);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:14px;background:#fbfcfd}
 .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
 .field{display:flex;flex-direction:column;gap:6px}
@@ -269,16 +287,8 @@ svg{flex:none}
     </div>
 
     <div class="side-group">
-      <span class="side-label">Document templates</span>
-      <button type="button" class="side-item" data-template="handbook">
-        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>
-        Personnel policies handbook</button>
-      <button type="button" class="side-item" data-template="fmla_policy">
-        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>
-        FMLA leave policy</button>
-      <button type="button" class="side-item" data-template="receipt">
-        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>
-        Policy acknowledgment receipt</button>
+      <span class="side-label">Build a document</span>
+      <div id="tpl-list"><p class="side-empty">Loading…</p></div>
     </div>
 
     <div class="side-logo">
@@ -416,88 +426,6 @@ const callout = html => `<div class="callout">${ICON.info}<div>${html}</div></di
 const legal = (topic) => `<div class="callout legal">${ICON.scale}<div>${topic || 'Because this involves statutory authority, confirm the answer with your municipal attorney or OMAG Legal Services before acting — especially if your ordinances or personnel policy delegate this authority differently.'}</div></div>`;
 const suggest = items => `<div class="suggest">${items.map(([label,q])=>`<button type="button" class="chip-btn" data-ask="${esc(q||label)}">${esc(label)}</button>`).join('')}</div>`;
 
-/* ============ DOCUMENT TEMPLATES (client-side for now) ============ */
-const A = {};
-function docCard(id, d){
-  return `<div class="doc-card">
-    <div class="doc-thumb" aria-hidden="true"><div class="page-mini"><i style="width:46px;height:6px;background:var(--navy)"></i><i style="width:70px;height:3px;background:var(--accent-line)"></i><i style="height:2px;background:var(--accent);margin:3px 0"></i><i style="width:80%"></i><i></i><i style="width:92%"></i><i style="height:9px;background:#e9f3e3"></i><i style="width:86%"></i><i></i><i style="width:60%"></i></div></div>
-    <div class="doc-info">
-      <div class="doc-meta"><span class="badge">DOCX</span><span>Word document · ${esc(state.muni)} letterhead</span></div>
-      <h3 class="doc-title">${esc(d.title)}</h3>
-      <ul>${d.bullets.map(b=>`<li>${b}</li>`).join('')}</ul>
-      <div class="doc-actions">
-        <button type="button" class="btn primary" data-doc-preview="${id}">${ICON.eye} Preview</button>
-        <button type="button" class="btn" data-doc-download="${id}">${ICON.dl} Download Word</button>
-        <button type="button" class="btn" data-action="pdf">Download PDF</button>
-      </div>
-    </div>
-  </div>`;
-}
-
-A.fmla_policy = () => {
-  const id = 'fmla'+Date.now();
-  const from = {town:'Town Clerk / Board of Trustees', aldermanic:'Mayor / City Clerk', cm:'City Manager / Human Resources', strong:'Mayor / Human Resources', charter:'[Per charter]'}[state.form];
-  state.docs[id] = { kind:'fmla', title:`FMLA Leave Policy – ${state.muni}`, from };
-  return { title:'FMLA leave policy', blocks:[
-    `<p>Here's your FMLA policy, built from OMAG's sample policy and set up for a <strong>${esc(F().label)}</strong>. I filled in your ${F().unit.toLowerCase()}'s details and highlighted the decisions only you can make. Have your municipal attorney or OMAG Legal Services review it before the ${esc(F().body)} adopts it.</p>`,
-    docCard(id, { title: state.docs[id].title, bullets:[
-      `Built from the ${cite('omag-fmla','OMAG sample FMLA policy')}`,
-      `12-month period: measured forward from first leave ${cite('29-CFR-825.200','29 C.F.R. § 825.200')}`,
-      `Issued by: ${esc(from)}`,
-      `Highlighted fields for decisions only your ${F().unit.toLowerCase()} can make`
-    ]}),
-    suggest([['Use a rolling 12-month period instead','Explain the four 12-month period methods'],['Add the acknowledgment receipt','Create a policy acknowledgment receipt']])
-  ]};
-};
-
-A.receipt = () => {
-  const id = 'rcpt'+Date.now();
-  state.docs[id] = { kind:'receipt', title:`Personnel Policy Receipt and Acknowledgment – ${state.muni}` };
-  return { title:'Policy acknowledgment receipt', blocks:[
-    `<p>Here's the receipt and acknowledgment page from OMAG's personnel policy template, set up for ${esc(state.muni)}. Each employee should sign and date it, and you should keep it in their personnel file.</p>`,
-    docCard(id, { title: state.docs[id].title, bullets:[`From the ${cite('omag-handbook','OMAG sample personnel policy')}`,'Includes the at-will and not-a-contract acknowledgments','Signature and date lines for employee and supervisor']})
-  ]};
-};
-
-A.handbook_ask = () => {
-  const f = F();
-  const base = state.form==='charter' ? 'Council-Manager' : f.label;
-  const custodians = {town:['Town Clerk','Town Administrator','Human Resources Director','Board of Trustees'],aldermanic:['City Clerk','Mayor','Human Resources Director'],cm:['City Manager','City Clerk','Human Resources Director'],strong:['Mayor','City Clerk','Human Resources Director'],charter:['City Manager','City Clerk','Human Resources Director']}[state.form];
-  return { title:'Personnel policies handbook', blocks:[
-    `<p>I'll build it from OMAG's <strong>${esc(base)}</strong> personnel policy template${state.form==='charter'?' (the closest match, and I\'ll flag sections to check against your charter)':''}. The template has blanks only your ${f.unit.toLowerCase()} can fill in. Here are the key ones:</p>`,
-    `<form class="form-card" data-form="handbook">
-      <div class="form-grid">
-        <div class="field full"><label for="hb-muni">${f.unit} name</label><input class="input" id="hb-muni" name="muni" value="${esc(state.muni)}" required></div>
-        <div class="field"><label for="hb-cust">Who approves access to personnel records?</label><select class="select" id="hb-cust" name="cust">${custodians.map(c=>`<option>${c}</option>`).join('')}</select></div>
-        <div class="field"><label for="hb-ret">Retirement plan</label><input class="input" id="hb-ret" name="ret" placeholder="e.g. Oklahoma Municipal Retirement Fund"></div>
-        <div class="field"><label for="hb-wait">Months before sick leave starts</label><input class="input" id="hb-wait" name="wait" type="number" min="0" max="24" value="3"></div>
-        <div class="field"><label for="hb-first">Sick leave hours, first 6 months</label><input class="input" id="hb-first" name="first" type="number" min="0" value="24"></div>
-        <div class="field"><label for="hb-after">Sick leave hours per 6 months after that</label><input class="input" id="hb-after" name="after" type="number" min="0" value="48"></div>
-        <div class="field"><label for="hb-max">Maximum sick leave accrual (hours)</label><input class="input" id="hb-max" name="max" type="number" min="0" value="480"></div>
-      </div>
-      <div class="form-foot"><span class="hint">Anything you leave blank stays highlighted in the document.</span><button type="submit" class="btn primary">Build handbook</button></div>
-    </form>`
-  ]};
-};
-
-A.handbook_done = (v) => {
-  const id = 'hb'+Date.now();
-  if (v.muni && !/^(Town|City) of Example$/.test(v.muni)) { state.muni = v.muni; state.muniSet = true; } renderProfile();
-  state.docs[id] = Object.assign({ kind:'handbook', title:`Employee Personnel Policy – ${state.muni}` }, v);
-  const blanks = ['ret','wait','first','after','max'].filter(k=>!String(v[k]||'').trim()).length;
-  return { title:'Personnel policies handbook', blocks:[
-    `<p>Your handbook is ready. I built it from OMAG's ${esc(state.form==='charter'?'Council-Manager':F().label)} template, filled in your answers, and kept the Title 11 authority section that matches your form of government.</p>`,
-    docCard(id, { title: state.docs[id].title, bullets:[
-      `Authority section for a ${esc(F().label)} ${cite('omag-handbook','OMAG template')}`,
-      `Personnel records released with approval of the ${esc(v.cust)}`,
-      `Sick leave: ${esc(v.wait||'__')}-month wait, then ${esc(v.first||'__')} hrs, then ${esc(v.after||'__')} hrs every 6 months (max ${esc(v.max||'__')})`,
-      blanks ? `${blanks} field${blanks>1?'s':''} still highlighted for you to complete` : 'All key blanks filled in'
-    ]}),
-    callout(`<strong>Before you distribute it:</strong> the ${esc(F().body)} must approve the policy, and each employee should sign the Receipt and Acknowledgment page. Have your municipal attorney or OMAG Legal Services review it first.`),
-    suggest([['Create the acknowledgment receipt','Create a policy acknowledgment receipt'],['Is our handbook FMLA compliant?']])
-  ]};
-};
-
 /* ============ LIVE: config, identity, history ============ */
 const CFG = window.PIP_CONFIG || {};
 const API = String(/^(localhost|127\.0\.0\.1)$/.test(location.hostname) ? location.origin : CFG.apiUrl || '').replace(/\/$/, '');
@@ -508,6 +436,7 @@ const LS = {
 const rid = (n = 16) => Array.from(crypto.getRandomValues(new Uint8Array(n)), (b) => 'abcdefghijklmnopqrstuvwxyz0123456789'[b % 36]).join('');
 const browserId = LS.get('pip.browser') || (() => { const id = 'b_' + rid(); LS.set('pip.browser', id); return id; })();
 state.form = LS.get('pip.form', 'town');
+if (LS.get('pip.muni')) { state.muni = LS.get('pip.muni'); state.muniSet = true; }
 let conv = newConv();
 function newConv() { return { id: 'c_' + rid(), title: '', form: state.form, updated: Date.now(), messages: [] }; }
 function saveConv() {
@@ -549,13 +478,8 @@ function personalize(text) {
     .replace(/\byour town's\b/gi, `your ${F().unit.toLowerCase()}'s`);
 }
 
-/* ============ LOCAL SOURCES (OMAG templates) ============ */
-const LOCAL_SOURCES = {
-  'omag-fmla': { kicker: 'OMAG template', title: 'OMAG Sample Employee and Family Member FMLA Policy',
-    body: `<p>OMAG's sample FMLA policy covers the purpose of the Act, definitions, eligibility, leave entitlement, the 12-month measuring period, notice, certification, benefits and job restoration, with citations to 29 C.F.R. Part 825.</p><p>The template notes that it should be reviewed by the municipal attorney before distribution so it accurately reflects the ordinances, policies and practices adopted by the governing body.</p>` },
-  'omag-handbook': { kicker: 'OMAG template', title: 'OMAG Sample Employee Personnel Policy',
-    body: `<p>OMAG maintains sample employee personnel policies for each statutory form of government — Statutory Town, Aldermanic, Strong-Mayor and Council-Manager — each written around that form's Title 11 authority sections and incorporating employment at-will status.</p><p>The governing body must approve the policy before it is distributed, and each employee should sign the Receipt and Acknowledgment page.</p>` }
-};
+/* ============ LOCAL SOURCES ============ */
+const LOCAL_SOURCES = {};
 
 /* ============ CITATIONS & MARKDOWN ============ */
 const ID_RE = /^[A-Za-z0-9.\-]{2,40}$/;
@@ -621,6 +545,12 @@ function finishAnswer(ui, msg) {
   // markers resolve to library ids for the source panel
   ui.answer.querySelectorAll('.cite').forEach((b) => { const c = (msg.citations || []).find((x) => x.marker === b.dataset.cite || x.id === b.dataset.cite); if (c) b.dataset.cite = c.id; });
   if (msg.unread?.length) ui.answer.insertAdjacentHTML('beforeend', `<p class="note-muted">${msg.unread.length === 1 ? 'One reference' : msg.unread.length + ' references'} couldn't be verified against the statute library and ${msg.unread.length === 1 ? 'was' : 'were'} removed.</p>`);
+  if (msg.documents?.length) {
+    const box = document.createElement('div');
+    box.className = 'block doc-offers';
+    box.innerHTML = msg.documents.map((o, i) => `<div class="doc-offer">${ICON.file}<div><strong>${esc(o.title)}</strong><span>OMAG template · Word document</span></div><button type="button" class="btn primary" data-offer="${i}">Build this document</button></div>`).join('');
+    ui.body.appendChild(box);
+  }
   const t = document.createElement('div');
   t.className = 'tools block';
   t.innerHTML = TOOLS_HTML;
@@ -659,7 +589,7 @@ async function askLive(q) {
       body: JSON.stringify({
         conversationId: conv.id, browserId, form: state.form,
         city: state.muniSet ? state.muni : undefined,
-        messages: conv.messages.map(({ role, text }) => ({ role, text }))
+        messages: conv.messages.filter((m) => m.role === 'user' || m.role === 'assistant').map(({ role, text }) => ({ role, text })).slice(-40)
       })
     });
     if (!res.ok) {
@@ -690,7 +620,7 @@ async function askLive(q) {
     }
     if (raf) cancelAnimationFrame(raf);
     if (!done) throw new Error('The answer was cut off. Please try again.');
-    const msg = { role: 'assistant', text: acc, citations: done.citations, unread: done.unread, turnId: done.turnId };
+    const msg = { role: 'assistant', text: acc, citations: done.citations, unread: done.unread, turnId: done.turnId, documents: done.documents?.length ? done.documents : undefined };
     finishAnswer(ui, msg);
     conv.messages.push(msg);
     saveConv();
@@ -702,20 +632,7 @@ async function askLive(q) {
   }
 }
 
-/** Local (client-side) flows: document templates. Everything else goes to the API. */
-function routeLocal(q) {
-  const t = q.toLowerCase();
-  if (/acknowledg|receipt/.test(t) && /(create|make|draft|build)/.test(t)) return A.receipt();
-  if (/(create|draft|build|make).*(fmla).*(policy)|^fmla leave policy/.test(t)) return A.fmla_policy();
-  if (/(build|create|draft|make|write).*(handbook|personnel polic)/.test(t)) return A.handbook_ask();
-  return null;
-}
-async function ask(q, opts = {}) {
-  if (state.busy || !q.trim()) return;
-  const local = opts.answer || routeLocal(q);
-  if (local) { closeSidebar(); addUser(q); if (!conv.title) { conv.title = local.title; $('#conv-title').textContent = local.title; } await addAI(local); return; }
-  return askLive(q);
-}
+function ask(q) { return askLive(q); }
 
 /* ============ SOURCE PANEL ============ */
 let lastFocus = null;
@@ -767,6 +684,7 @@ function openConv(id) {
   $('#conv-title').textContent = c.title || 'Conversation';
   for (const m of c.messages) {
     if (m.role === 'user') { addUser(m.text); continue; }
+    if (m.role === 'doc') { renderDocBlock(m); continue; }
     const ui = aiShell();
     finishAnswer(ui, m);
   }
@@ -892,6 +810,7 @@ function setForm(form){
   if (form === state.form) return;
   state.form = form; LS.set('pip.form', form);
   if (/^(Town|City) of Example$/.test(state.muni)) state.muni = F().unit + ' of Example';
+  loadTemplates(true);
   renderProfile();
   if (!started) renderWelcome();
   toast(`Pip will now answer for a ${F().label}.`);
@@ -899,150 +818,227 @@ function setForm(form){
 function renderProfile(){ renderGov(); }
 
 
-function openTemplates(){
-  openModal('Document templates', `<div style="display:flex;flex-direction:column;gap:10px">
-    ${[['handbook','Personnel policies handbook',`OMAG's template for a ${F().label}, filled in with your details`],['fmla_policy','FMLA leave policy',"OMAG's sample employee and family member FMLA policy"],['receipt','Policy acknowledgment receipt','Signature page for employees to acknowledge the handbook']].map(([k,t,d])=>`<button type="button" class="starter" data-template="${k}" style="min-height:0"><span class="starter-text" style="font-weight:600">${t}</span><span style="font-size:13.5px;color:var(--muted)">${esc(d)}</span></button>`).join('')}
-  </div>`);
+/* ============ DOCUMENTS (OMAG's Word templates, filled in by the server) ============ */
+let TEMPLATES = null, tplForm = null, tplLoading = null;
+const DOC_ICON = '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>';
+function loadTemplates(force) {
+  if (!API) { TEMPLATES = []; renderTemplateList(); return Promise.resolve([]); }
+  if (TEMPLATES && tplForm === state.form && !force) return Promise.resolve(TEMPLATES);
+  if (tplLoading && !force) return tplLoading;
+  const form = state.form;
+  tplLoading = fetch(`${API}/templates?form=${encodeURIComponent(form)}`)
+    .then((r) => (r.ok ? r.json() : { templates: [] }))
+    .then((j) => { if (form === state.form) { TEMPLATES = j.templates || []; tplForm = form; } return TEMPLATES || []; })
+    .catch(() => { TEMPLATES = TEMPLATES || []; return TEMPLATES; })
+    .finally(() => { tplLoading = null; renderTemplateList(); });
+  return tplLoading;
 }
-
-/* --- document preview / download --- */
-const B = (v, fallback) => (v!==undefined && String(v).trim()!=='') ? `<span class="filled">${esc(v)}</span>` : `<span class="blank">${fallback||'________'}</span>`;
-function docHTML(id){
-  const d = state.docs[id]; const f = F(); const U = f.unit;
-  const head = `<div class="letterhead"><div class="town">${esc(state.muni)}</div><div class="sm">${esc(f.label)} · Oklahoma</div></div>`;
-  if (d.kind==='fmla') return `<div class="doc-page">${head}
-    <h1>Employee and Family Member FMLA Policy</h1>
-    <p style="text-align:center;font-size:12px;color:#666;margin-bottom:22px">Adopted by the ${esc(f.body)} on ${B('','[DATE]')}</p>
-    <p><strong>TO:</strong> Department Directors / Division Managers<br><strong>FROM:</strong> ${B(d.from)}<br><strong>SUBJECT:</strong> Family and Medical Leave Act of 1993 – Employee and Family Member</p>
-    <h2>I. Purpose of the Act</h2>
-    <p>The FMLA allows eligible employees to take up to 12 weeks of unpaid leave in a 12-month period for medical reasons; the birth or adoption of a child; and the care of a child, spouse, or parent of the employee who has a serious health condition. (§ 825.200(a)).</p>
-    <h2>II. Definitions</h2>
-    <h3>H. FMLA 12-Month Period</h3>
-    <p>The 12-month period is measured forward from the date an employee's first FMLA leave begins. Example: If an employee's FMLA 12-month period begins on June 9 it will run until the following June 8. (§ 825.200(b)(4)).</p>
-    <h2>III. Eligibility Requirements</h2>
-    <p>To be eligible for leave under the FMLA, an employee must have been employed by ${B(state.muni)} for at least 12 months within the past seven years and worked at least 1,250 hours during the previous 12-month period preceding the request for leave. (§ 825.110).</p>
-    <p style="color:#888;font-style:italic;margin-top:24px">— Preview shows the first sections. The full policy continues with leave entitlement, notice, certification, benefits and job restoration. —</p></div>`;
-  if (d.kind==='receipt') return `<div class="doc-page">${head}
-    <h1>Employee Personnel Policy</h1><h2 style="text-align:center">Receipt and Acknowledgment</h2>
-    <p>I acknowledge that I have received a copy of the ${B(state.muni)} Employee Personnel Policy. I understand that it is my responsibility to read and comply with the policies it contains and any revisions made to it.</p>
-    <p>I understand that the policy is not a contract of employment, and that my employment with the ${U} is at-will. The ${U} may change its policies at any time.</p>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:40px;font-family:'Public Sans',sans-serif;font-size:12px;color:#555">
-      <div style="border-top:1px solid #333;padding-top:6px">Employee signature</div><div style="border-top:1px solid #333;padding-top:6px">Date</div>
-      <div style="border-top:1px solid #333;padding-top:6px">Employee name (printed)</div><div style="border-top:1px solid #333;padding-top:6px">Supervisor signature</div>
-    </div></div>`;
-  // handbook
-  const auth = {
-    town:`<h3>Authority (11 O.S. § 12-106)</h3><p>The Board of Trustees may appoint and remove, and confirm appointments of designated town officers and employees as provided by law or ordinance. The Board of Trustees may inquire into the conduct of any office, department or agency of the Town, and investigate municipal affairs, or authorize and provide such inquiries.</p>`,
-    aldermanic:`<h3>Authority (11 O.S. §§ 9-105 and 9-117)</h3><p>The Mayor shall serve as the Chief Executive Officer of the administrative branch of the City… The Mayor shall also appoint, subject to the confirmation by the City Council, a City Attorney and all heads or directors of administrative departments and all other administrative officers and employees of the City. All appointments and promotions shall be made solely on the basis of merit and fitness.</p>`,
-    cm:`<h3>Authority (11 O.S. § 10-113)</h3><p>The City Manager serves as the Chief Executive Officer and Head of the administrative branch of the City and supervises and controls all departments, officers and agencies of the City. The City Manager shall appoint, and when necessary for the good of the service, remove, demote, lay-off or suspend all heads of administrative departments and other administrative officers and employees of the City except as otherwise provided by law.</p>`,
-    strong:`<h3>Authority (11 O.S. § 11-106)</h3><p>The Mayor serves as the Chief Administrative Officer and head of the administrative branch of the City and supervises and controls all departments, officers and agencies of the City. The Mayor shall appoint, and when necessary for the good of the service, remove, demote, lay off or suspend all heads of administrative departments and other administrative officers and employees of the City except as otherwise provided by law.</p>`
-  };
-  auth.charter = auth.cm.replace('</p>',' <span class="blank">[Confirm against city charter]</span></p>');
-  return `<div class="doc-page">${head}
-    <h1>Employee Personnel Policy</h1>
-    <p style="text-align:center;font-size:12px;color:#666;margin-bottom:22px">Approved by the ${esc(f.body)} of ${esc(state.muni)} on ${B('','[DATE]')}</p>
-    <h2>Introduction</h2>
-    <p>This handbook is intended to be an informative guide to employees of the ${B(state.muni)} ("${U}") regarding its policies, procedures, and benefits. The ${U} is proud of the procedures and policies that we have developed. We think you will find that they reflect our commitment to treating our employees fairly.</p>
-    <p><strong>Disclaimer:</strong> This handbook is provided as a guide and is not to be considered a contract. The ${U} reserves the right to make changes to its policies, procedures, and other statements made in the handbook… No such change in the Employee Personnel Policy shall modify the at-will nature of employment at the ${U}.</p>
-    <h2>General Policies and Procedures</h2>${auth[state.form]}
-    <h3>Personnel Records</h3>
-    <p>All individual records, computer generated employee reports, personnel files, and information therein, except those specified by ordinance or statute as public records, shall be restricted as confidential, and shall be available only with the approval of the ${B(d.cust)}.</p>
-    <h3>Pension or Retirement Benefits</h3>
-    <p>The ${U} pays monthly premiums into the ${B(d.ret,'[RETIREMENT PLAN]')} for your retirement. Please see the payroll clerk for details.</p>
-    <h3>Sick Leave</h3>
-    <p>No employee will be eligible for Sick Leave until such time that the employee has ${B(d.wait,'___')} months of service with the ${U}. At that time, an employee will be eligible for ${B(d.first,'___')} hours of Sick Leave for the following six months. After that, the employee is eligible for ${B(d.after,'___')} hours of sick leave for each six months of continuous service.</p>
-    <p>An employee may accumulate no more than ${B(d.max,'___')} hours of sick leave. Accumulated sick leave is not compensable upon termination of employment.</p>
-    <p style="color:#888;font-style:italic;margin-top:24px">— Preview shows selected sections. Green = filled from your answers; yellow = still needs your input. —</p></div>`;
+function renderTemplateList() {
+  const el = $('#tpl-list'); if (!el) return;
+  el.innerHTML = TEMPLATES === null ? '<p class="side-empty">Loading…</p>'
+    : TEMPLATES.length ? TEMPLATES.map((t) => `<button type="button" class="side-item" data-tpl="${esc(t.id)}" title="${esc(t.description || '')}">${DOC_ICON}<span>${esc(t.title)}</span></button>`).join('')
+    : '<p class="side-empty">No document templates for your form of government yet.</p>';
 }
-function previewDoc(id){
-  const d = state.docs[id]; if(!d) return;
-  openModal(d.title, `<div class="preview-pages">${docHTML(id)}</div>`,
-    `<button type="button" class="btn" data-action="close-modal">Close</button><button type="button" class="btn primary" data-doc-download="${id}">${ICON.dl} Download Word</button>`, true);
+function openTemplates() {
+  loadTemplates().then((list) => {
+    openModal('Build a document', list.length
+      ? `<p style="margin:0 0 12px;color:var(--muted);font-size:14px">OMAG's sample documents, set up for a ${esc(F().label)}. Answer a few questions and download the Word file.</p><div style="display:flex;flex-direction:column;gap:10px">${list.map((t) => `<button type="button" class="starter" data-tpl="${esc(t.id)}" style="min-height:0"><span class="starter-text" style="font-weight:600">${esc(t.title)}</span><span style="font-size:13.5px;color:var(--muted)">${esc(t.description || '')}</span></button>`).join('')}</div>`
+      : '<p style="margin:0">No document templates are available for your form of government yet.</p>');
+  });
 }
-let docxLib = null;
-function loadDocxLib(){
-  if (window.docx) return Promise.resolve(window.docx);
-  if (docxLib) return docxLib;
-  docxLib = new Promise((res, rej)=>{
+/** A "Create a document" starter: open the template whose title best matches its words, or the picker. */
+async function startFromStarter(text) {
+  const list = await loadTemplates();
+  const words = String(text).toLowerCase().match(/[a-z]{4,}/g) || [];
+  let best = null, bestScore = 0;
+  for (const t of list) {
+    const hay = `${t.title} ${t.description || ''}`.toLowerCase();
+    const score = words.filter((w) => hay.includes(w.replace(/s$/, ''))).length;
+    if (score > bestScore) { best = t; bestScore = score; }
+  }
+  if (best) startDocument(best.id); else openTemplates();
+}
+function prefillValue(kind) {
+  switch (kind) {
+    case 'municipality': return state.muniSet ? state.muni : '';
+    case 'city_name_only': return state.muniSet ? state.muni.replace(/^(Town|City) of\s+/i, '') : '';
+    case 'governing_body': return F().body;
+    case 'clerk': return F().clerk;
+    case 'today': return new Date().toISOString().slice(0, 10);
+    default: return '';
+  }
+}
+async function startDocument(templateId, prefill = {}) {
+  if (state.busy) return;
+  const list = await loadTemplates();
+  const t = list.find((x) => x.id === templateId);
+  if (!t) { toast(`That document isn't available for a ${F().label}.`); return; }
+  if (!started) { inner.innerHTML = ''; started = true; }
+  const values = {};
+  for (const f of t.fields) {
+    let v = f.default ?? '';
+    const pre = prefillValue(f.prefill);
+    if (pre !== '') v = pre;
+    if (prefill && prefill[f.key] !== undefined && prefill[f.key] !== '') v = prefill[f.key];
+    if (v !== '' && v !== undefined) values[f.key] = v;
+  }
+  const msg = { role: 'doc', id: 'd_' + rid(8), templateId: t.id, title: t.title, form: state.form, values, built: null, at: Date.now() };
+  if (!conv.title) { conv.title = t.title; $('#conv-title').textContent = t.title; }
+  conv.form = state.form;
+  conv.messages.push(msg);
+  saveConv(); setActive(conv.id);
+  renderDocBlock(msg, { focus: true });
+}
+const docMsg = (id) => conv.messages.find((m) => m.role === 'doc' && m.id === id);
+function fieldControl(f, v, mid) {
+  const id = `${mid}-${f.key}`, val = v ?? '';
+  const common = `id="${id}" name="${esc(f.key)}" data-doc-field="${mid}"${f.required ? ' required' : ''}`;
+  switch (f.type) {
+    case 'textarea': return `<textarea class="input" ${common} rows="4" style="padding:10px 12px;min-height:96px">${esc(val)}</textarea>`;
+    case 'number': return `<input class="input" ${common} type="number" min="0" step="any" inputmode="decimal" value="${esc(val)}">`;
+    case 'date': return `<input class="input" ${common} type="date" value="${esc(val)}">`;
+    case 'select': return `<select class="select" ${common}>${f.default ? '' : '<option value="">Choose…</option>'}${(f.options || []).map((o) => `<option value="${esc(o.value)}"${o.value === val ? ' selected' : ''}>${esc(o.label)}</option>`).join('')}</select>`;
+    case 'yesno': return `<select class="select" ${common}><option value="">Choose…</option><option value="yes"${val === true || val === 'yes' ? ' selected' : ''}>Yes</option><option value="no"${val === false || val === 'no' ? ' selected' : ''}>No</option></select>`;
+    default: return `<input class="input" ${common} type="text" value="${esc(val)}" autocomplete="off">`;
+  }
+}
+function renderDocForm(msg, t) {
+  const groups = [];
+  for (const f of t.fields) {
+    const g = f.group || 'Details';
+    let grp = groups.find((x) => x.name === g);
+    if (!grp) groups.push(grp = { name: g, fields: [] });
+    grp.fields.push(f);
+  }
+  const notes = t.notes?.length ? `<details class="doc-notes"><summary>Before you adopt this (${t.notes.length})</summary><ul>${t.notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul></details>` : '';
+  return `<form class="form-card doc-form" data-doc-form="${msg.id}" novalidate>
+    ${t.fallback ? `<div class="callout">${ICON.info}<div>${esc(t.fallback)}</div></div>` : ''}
+    ${notes}
+    ${groups.map((g) => `<fieldset class="doc-group"><legend>${esc(g.name)}</legend><div class="form-grid">${g.fields.map((f) => `
+      <div class="field${f.type === 'textarea' || (f.label || '').length > 60 || (f.help || '').length > 90 ? ' full' : ''}">
+        <label for="${msg.id}-${esc(f.key)}">${esc(f.label)}${f.required ? ' <span aria-hidden="true" style="color:var(--bad)">*</span>' : ''}</label>
+        ${fieldControl(f, msg.values[f.key], msg.id)}
+        ${f.help ? `<span class="hint">${esc(f.help)}</span>` : ''}
+      </div>`).join('')}</div></fieldset>`).join('')}
+    <div class="form-foot"><span class="hint">Anything you leave blank prints as a blank line (________) you can fill in later.</span><button type="button" class="btn primary" data-doc-build="${msg.id}">${ICON.dl} Build document</button></div>
+  </form>`;
+}
+function renderDocResult(msg) {
+  const b = msg.built;
+  return `<div class="doc-card">
+    <div class="doc-thumb" aria-hidden="true"><div class="page-mini"><i style="width:46px;height:6px;background:var(--navy)"></i><i style="width:70px;height:3px;background:var(--accent-line)"></i><i style="height:2px;background:var(--accent);margin:3px 0"></i><i style="width:80%"></i><i></i><i style="width:92%"></i><i style="height:9px;background:#e9f3e3"></i><i style="width:86%"></i><i></i><i style="width:60%"></i></div></div>
+    <div class="doc-info">
+      <div class="doc-meta"><span class="badge">DOCX</span><span>Word document · OMAG template</span></div>
+      <h3 class="doc-title">${esc(b.filename.replace(/\.docx$/, ''))}</h3>
+      <ul>${b.blanks?.length ? `<li><strong>${b.blanks.length} blank${b.blanks.length === 1 ? '' : 's'}</strong> left to fill in: ${esc(b.blanks.slice(0, 4).join('; '))}${b.blanks.length > 4 ? '…' : ''}</li>` : '<li>Every question answered</li>'}
+        <li>Built ${esc(new Date(b.at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))} for a ${esc((FORMS[msg.form] || F()).label)}</li></ul>
+      <div class="doc-actions">
+        <button type="button" class="btn primary" data-doc-download="${msg.id}">${ICON.dl} Download Word</button>
+        <button type="button" class="btn" data-doc-preview="${msg.id}">${ICON.eye} Preview</button>
+        <button type="button" class="btn" data-doc-edit="${msg.id}">Change answers</button>
+      </div>
+    </div>
+  </div>
+  ${callout(`<strong>Before you use it:</strong> review the whole document, fill in any blanks, and have your municipal attorney or OMAG Legal Services review it. Your ${esc((FORMS[msg.form] || F()).body)} must approve a policy before it's given to employees.`)}`;
+}
+async function renderDocBlock(msg, { focus = false, replace = null } = {}) {
+  // Put the block in place first so conversations reopen in order, then fill it in.
+  const wrap = replace || document.createElement('div');
+  wrap.className = 'msg-ai block';
+  wrap.dataset.docMsg = msg.id;
+  if (!replace) inner.appendChild(wrap);
+  const list = msg.form === state.form ? await loadTemplates() : await fetch(`${API}/templates?form=${encodeURIComponent(msg.form)}`).then((r) => r.json()).then((j) => j.templates || []).catch(() => []);
+  const t = list.find((x) => x.id === msg.templateId);
+  const intro = msg.built
+    ? `<p>Here's your <strong>${esc(msg.title)}</strong>, built from OMAG's template with your answers.</p>`
+    : t ? `<p>I'll build <strong>${esc(t.title)}</strong> from OMAG's template for a ${esc((FORMS[msg.form] || F()).label)}. ${esc(t.description || '')} Answer what you can, then choose <strong>Build document</strong> to download the Word file.</p>`
+    : `<p>The <strong>${esc(msg.title)}</strong> template isn't available any more.</p>`;
+  wrap.innerHTML = `<div class="ai-mark" aria-hidden="true">${pipIcon()}</div><div class="ai-body"><div class="ai-name">${esc(BOT)}</div><div class="block">${intro}</div><div class="block">${msg.built && !msg.editing ? renderDocResult(msg) : t ? renderDocForm(msg, t) : ''}</div></div>`;
+  if (focus) { wrap.scrollIntoView({ block: 'start', behavior: 'smooth' }); setTimeout(() => wrap.querySelector('input,select,textarea')?.focus({ preventScroll: true }), 350); }
+  else scrollDown();
+}
+let docSaveTimer = null;
+document.addEventListener('input', (e) => {
+  const el = e.target.closest('[data-doc-field]'); if (!el) return;
+  const msg = docMsg(el.dataset.docField); if (!msg) return;
+  const v = el.value;
+  if (v === '') delete msg.values[el.name]; else msg.values[el.name] = el.type === 'number' ? Number(v) : v;
+  el.removeAttribute('aria-invalid');
+  clearTimeout(docSaveTimer); docSaveTimer = setTimeout(saveConv, 400);
+});
+document.addEventListener('change', (e) => { if (e.target.closest('[data-doc-field]')) e.target.dispatchEvent(new Event('input', { bubbles: true })); });
+const docFiles = new Map();   // msg id → { blob, filename } built in this browser session
+async function fetchDocument(msg) {
+  const r = await fetch(`${API}/templates/fill`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ templateId: msg.templateId, form: msg.form, values: msg.values, municipality: msg.values.municipality_name, browserId, conversationId: conv.id })
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || 'Pip couldn’t build that document. Please try again.');
+  const bytes = Uint8Array.from(atob(j.data), (c) => c.charCodeAt(0));
+  const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+  docFiles.set(msg.id, { blob, filename: j.filename });
+  return j;
+}
+function saveBlob(blob, filename) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+async function buildDocument(id, btn) {
+  const msg = docMsg(id); if (!msg) return;
+  const form = document.querySelector(`[data-doc-form="${id}"]`);
+  const missing = [...form.querySelectorAll('[required]')].filter((el) => !el.value.trim());
+  if (missing.length) { missing.forEach((el) => el.setAttribute('aria-invalid', 'true')); missing[0].focus(); toast('Please fill in the required question first.'); return; }
+  btn.disabled = true; const label = btn.innerHTML; btn.textContent = 'Building…';
+  try {
+    const j = await fetchDocument(msg);
+    msg.built = { filename: j.filename, blanks: j.blanks, at: Date.now() };
+    msg.editing = false;
+    if (msg.values.municipality_name && !/^(Town|City) of Example$/.test(msg.values.municipality_name)) { state.muni = String(msg.values.municipality_name); state.muniSet = true; LS.set('pip.muni', state.muni); }
+    saveConv();
+    await renderDocBlock(msg, { replace: btn.closest('.msg-ai') });
+    saveBlob(docFiles.get(id).blob, j.filename);
+    toast('Your document is downloading.');
+  } catch (e) {
+    toast(e.message); btn.disabled = false; btn.innerHTML = label;
+  }
+}
+async function ensureFile(msg, btn) {
+  if (docFiles.has(msg.id)) return docFiles.get(msg.id);
+  const label = btn.innerHTML; btn.disabled = true; btn.textContent = 'Preparing…';
+  try { await fetchDocument(msg); return docFiles.get(msg.id); } finally { btn.disabled = false; btn.innerHTML = label; }
+}
+async function downloadDocument(id, btn) {
+  const msg = docMsg(id); if (!msg) return;
+  try { const f = await ensureFile(msg, btn); saveBlob(f.blob, f.filename); } catch (e) { toast(e.message); }
+}
+let mammothLib = null;
+function loadMammoth() {
+  if (window.mammoth) return Promise.resolve(window.mammoth);
+  return mammothLib ||= new Promise((res, rej) => {
     const sc = document.createElement('script');
-    sc.src = 'https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js';
-    sc.onload = ()=> window.docx ? res(window.docx) : rej(new Error('lib'));
-    sc.onerror = ()=>{ docxLib = null; rej(new Error('load')); };
+    sc.src = 'https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js';
+    sc.onload = () => (window.mammoth ? res(window.mammoth) : rej(new Error('lib')));
+    sc.onerror = () => { mammothLib = null; rej(new Error('load')); };
     document.head.appendChild(sc);
   });
-  return docxLib;
 }
-/* Convert the preview page's HTML into a real .docx (headings, paragraphs, highlighted blanks). */
-async function buildDocx(id){
-  const D = await loadDocxLib();
-  const { Document, Packer, Paragraph, TextRun, AlignmentType, BorderStyle } = D;
-  const tpl = document.createElement('div'); tpl.innerHTML = docHTML(id);
-  const page = tpl.querySelector('.doc-page');
-  const runs = (node, base={}) => {
-    const out = [];
-    node.childNodes.forEach(n=>{
-      if (n.nodeType===3){ const t=n.textContent.replace(/\s+/g,' '); if(t) out.push(new TextRun(Object.assign({text:t}, base))); }
-      else if (n.nodeType===1){
-        if (n.tagName==='BR'){ out.push(new TextRun({break:1})); return; }
-        const o = Object.assign({}, base);
-        if (n.tagName==='STRONG'||n.tagName==='B') o.bold = true;
-        if (n.tagName==='EM'||n.tagName==='I') o.italics = true;
-        if (n.classList.contains('blank')) o.highlight = 'yellow';
-        out.push(...runs(n, o));
-      }
-    });
-    return out;
-  };
-  const kids = [];
-  page.childNodes.forEach(n=>{
-    if (n.nodeType!==1) return;
-    if (n.classList.contains('letterhead')){
-      kids.push(new Paragraph({alignment:AlignmentType.CENTER, children:[new TextRun({text:n.querySelector('.town').textContent, bold:true, size:30, color:'16324F', font:'Arial'})]}));
-      kids.push(new Paragraph({alignment:AlignmentType.CENTER, spacing:{after:240}, border:{bottom:{color:'3A6A9A', space:6, style:BorderStyle.SINGLE, size:12}}, children:[new TextRun({text:n.querySelector('.sm').textContent, size:18, color:'555555', font:'Arial'})]}));
-      return;
-    }
-    if (/color:#888/.test(n.getAttribute('style')||'')) return;
-    const centered = n.tagName==='H1' || /text-align:center/.test(n.getAttribute('style')||'');
-    if (n.tagName==='H1') kids.push(new Paragraph({alignment:AlignmentType.CENTER, spacing:{before:120,after:80}, children:runs(n,{bold:true,size:40,font:'Georgia'})}));
-    else if (n.tagName==='H2') kids.push(new Paragraph({alignment:centered?AlignmentType.CENTER:undefined, spacing:{before:320,after:120}, children:runs(n,{bold:true,size:21,color:'16324F',font:'Arial',allCaps:true})}));
-    else if (n.tagName==='H3') kids.push(new Paragraph({spacing:{before:220,after:80}, children:runs(n,{bold:true,size:22,font:'Arial'})}));
-    else if (n.tagName==='P') kids.push(new Paragraph({alignment:centered?AlignmentType.CENTER:undefined, spacing:{after:160,line:300}, children:runs(n,{size:23,font:'Georgia'})}));
-    else if (n.tagName==='DIV'){ // signature grid
-      kids.push(new Paragraph({spacing:{before:480}, children:[]}));
-      n.querySelectorAll(':scope > div').forEach(c=> kids.push(new Paragraph({spacing:{before:480,after:60}, border:{top:{color:'333333',space:4,style:BorderStyle.SINGLE,size:6}}, children:[new TextRun({text:c.textContent, size:18, color:'555555', font:'Arial'})]})));
-    }
-  });
-  const doc = new Document({ creator:`${BOT} – OMAG's HR assistant (prototype)`, title: state.docs[id].title, sections:[{ properties:{page:{margin:{top:1440,bottom:1440,left:1440,right:1440}}}, children: kids }] });
-  return Packer.toBlob(doc);
+async function previewDocument(id, btn) {
+  const msg = docMsg(id); if (!msg) return;
+  try {
+    const [f, mammoth] = await Promise.all([ensureFile(msg, btn), loadMammoth()]);
+    const { value } = await mammoth.convertToHtml({ arrayBuffer: await f.blob.arrayBuffer() });
+    openModal(f.filename.replace(/\.docx$/, ''), `<div class="preview-pages"><div class="doc-page word">${value}</div></div>`,
+      `<span class="hint" style="margin-right:auto;font-size:12.5px;color:var(--muted)">Simplified preview. Open the Word file for the exact layout.</span><button type="button" class="btn" data-action="close-modal">Close</button><button type="button" class="btn primary" data-doc-download="${msg.id}">${ICON.dl} Download Word</button>`, true);
+  } catch (e) { toast(e.message === 'load' || e.message === 'lib' ? 'The preview couldn’t load. Download the Word file instead.' : e.message); }
 }
-let downloadsNS;
-async function getDownloads(){
-  if (downloadsNS !== undefined) return downloadsNS;
-  try { downloadsNS = (window.claude && typeof window.claude.use==='function') ? await window.claude.use('downloads') : null; }
-  catch(e){ downloadsNS = null; }
-  return downloadsNS;
+function editDocument(id) {
+  const msg = docMsg(id); if (!msg) return;
+  msg.editing = true; docFiles.delete(id);
+  renderDocBlock(msg, { replace: document.querySelector(`[data-doc-msg="${id}"]`), focus: true });
 }
-async function downloadDoc(id){
-  const d = state.docs[id]; if(!d) return;
-  const filename = d.title.replace(/[^\w\- ]+/g,'').replace(/\s+/g,'_') + '.docx';
-  toast('Preparing the Word document…');
-  let blob;
-  try { blob = await buildDocx(id); }
-  catch(e){ toast('Couldn\'t build the Word file in this view. The live tool produces a .docx from OMAG\'s template.'); return; }
-  const dl = await getDownloads();
-  if (dl){
-    try { await dl.save({ filename, data: blob }); toast('Saved. The live tool fills in OMAG\'s full template.'); }
-    catch(err){ const c = err && err.code; if (c==='declined') toast('Download cancelled.'); else if (c==='rate_limited') toast('A download prompt is already open.'); else toast('Downloads aren\'t available in this view.'); }
-    return;
-  }
-  try{
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
-    toast('Downloaded. The live tool fills in OMAG\'s full template.');
-  }catch(e){ toast('Downloads aren\'t available in this view.'); }
-}
-
 
 /* ============ EVENTS ============ */
 const ta = $('#prompt');
@@ -1051,25 +1047,19 @@ ta.addEventListener('input', ()=>{ ta.style.height='auto'; ta.style.height=Math.
 ta.addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); $('#composer').requestSubmit(); } });
 $('#composer').addEventListener('submit', e=>{ e.preventDefault(); const q=ta.value.trim(); if(!q||state.busy) return; ta.value=''; ta.style.height='auto'; updateSend(); ask(q); });
 
-document.addEventListener('submit', e=>{
-  const f = e.target.closest('[data-form="handbook"]'); if(!f) return;
-  e.preventDefault(); if (state.busy) return;
-  const v = Object.fromEntries(new FormData(f).entries());
-  f.querySelectorAll('input,select,button').forEach(el=>el.disabled=true);
-  const summary = `${v.muni}: records approved by ${v.cust}; ${v.ret?v.ret+' retirement; ':''}sick leave ${v.wait||'?'}-month wait, ${v.first||'?'} then ${v.after||'?'} hrs, max ${v.max||'?'}.`;
-  ask(summary, {answer: A.handbook_done(v)});
-});
-
 document.addEventListener('click', e=>{
   const sb=$('#sidebar'); if(sb.classList.contains('open') && !e.target.closest('#sidebar') && !e.target.closest('[data-action="menu"]')) closeSidebar();
   const t = e.target.closest('button,[data-action],a'); if(!t) return;
   if (t.dataset.cite){ openCite(t.dataset.cite); return; }
   if (t.dataset.ask){ closeModal(); ask(t.dataset.ask); return; }
-  if (t.dataset.docStarter !== undefined){ if (routeLocal(t.dataset.docStarter)) ask(t.dataset.docStarter); else openTemplates(); return; }
+  if (t.dataset.docStarter !== undefined){ closeModal(); startFromStarter(t.dataset.docStarter); return; }
+  if (t.dataset.tpl){ closeModal(); closeSidebar(); startDocument(t.dataset.tpl); return; }
+  if (t.dataset.offer){ const o = t.closest('.ai-body')?._msg?.documents?.[Number(t.dataset.offer)]; if (o) startDocument(o.templateId, o.prefill); return; }
+  if (t.dataset.docBuild){ buildDocument(t.dataset.docBuild, t); return; }
+  if (t.dataset.docDownload){ downloadDocument(t.dataset.docDownload, t); return; }
+  if (t.dataset.docPreview){ previewDocument(t.dataset.docPreview, t); return; }
+  if (t.dataset.docEdit){ editDocument(t.dataset.docEdit); return; }
   if (t.dataset.conv){ openConv(t.dataset.conv); return; }
-  if (t.dataset.template){ closeModal(); const map={handbook:'Build our personnel policies handbook',fmla_policy:'Create our FMLA policy from the OMAG sample',receipt:'Create a policy acknowledgment receipt'}; ask(map[t.dataset.template]); return; }
-  if (t.dataset.docPreview){ previewDoc(t.dataset.docPreview); return; }
-  if (t.dataset.docDownload){ downloadDoc(t.dataset.docDownload); return; }
   if (t.dataset.vote){ vote(t); return; }
   const a = t.dataset.action; if(!a) return;
   switch(a){
@@ -1082,7 +1072,6 @@ document.addEventListener('click', e=>{
     case 'close-modal': closeModal(); break;
     case 'close-panel': closePanel(); break;
     case 'attach': toast('Attaching files (handbooks, ordinances, charters) is coming in a later phase.'); break;
-    case 'pdf': toast('PDF download is coming soon. For now, download the Word file and save it as PDF.'); break;
     case 'copy': {
       const body = t.closest('.ai-body'); const m = body._msg;
       const txt = m ? plain(m.text, new Map((m.citations||[]).map(c=>[c.marker||c.id,c.cite]))) : body.querySelector('.ai-answer, .block')?.innerText || '';
@@ -1103,6 +1092,7 @@ document.title = `${BOT} – OMAG's HR Assistant`;
 renderProfile();
 renderWelcome();
 loadSiteSettings();
+loadTemplates();
 })();
 </script>
 </body>

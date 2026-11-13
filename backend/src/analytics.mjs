@@ -1,7 +1,7 @@
 // Usage analytics for the admin panel, computed from the logged member questions.
 // Days, hours and weekdays are in Oklahoma time (America/Chicago).
 
-import { listTurns, listContacts } from './store.mjs';
+import { listTurns, listContacts, listDocumentFills } from './store.mjs';
 
 const TZ = 'America/Chicago';
 const dayFmt = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' });
@@ -137,10 +137,16 @@ export async function analytics({ days = 30, labels = () => null, prices = {} } 
   }
 
   const contacts = (await listContacts({ limit: 500 })).filter((c) => startCur.has(localDay(new Date(c.at)))).length;
+  const fills = await listDocumentFills({ days: days * 2 + 1 });
+  const curFills = fills.filter((f) => startCur.has(localDay(new Date(f.at))));
+  const prevFills = fills.filter((f) => startPrev.has(localDay(new Date(f.at)))).length;
+  const docCounts = {};
+  for (const f of curFills) docCounts[f.title || f.templateId] = (docCounts[f.title || f.templateId] || 0) + 1;
 
   return {
     days, bucket, timeZone: TZ,
-    totals: { ...totals, contacts }, previous,
+    totals: { ...totals, contacts, documents: curFills.length }, previous: { ...previous, documents: prevFills },
+    documents: top(docCounts, 12).map(([name, n]) => ({ name, n })),
     series,
     byHour, byWeekday,
     forms,

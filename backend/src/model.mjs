@@ -41,7 +41,7 @@ export function buildRequest({ modelId, system, messages, tools, maxTokens }) {
  */
 export async function converseTurn({ system, messages, tools, onText, modelId, maxTokens }) {
   modelId ||= process.env.MODEL_ID;
-  if ((process.env.MODEL_MODE || '').toLowerCase() === 'mock') return mockTurn({ messages, onText });
+  if ((process.env.MODEL_MODE || '').toLowerCase() === 'mock') return mockTurn({ messages, onText, tools });
 
   // Plain HTTP/1.1 rather than the SDK's HTTP/2 default: ConverseStream works the
   // same either way, and HTTP/1.1 also gets through office firewalls that inspect
@@ -102,12 +102,23 @@ export async function converseTurn({ system, messages, tools, onText, modelId, m
  * Turn 2: read the top two results.
  * Turn 3: write an answer citing them.
  */
-async function mockTurn({ messages, onText }) {
+async function mockTurn({ messages, onText, tools = [] }) {
   const last = messages[messages.length - 1];
   const toolResults = (last.content || []).filter((b) => b.toolResult);
   const userText = [...messages].reverse().find((m) => m.role === 'user' && m.content.some((b) => b.text))?.content.find((b) => b.text)?.text || '';
   const usage = { inputTokens: 1200, outputTokens: 180, cacheReadInputTokens: 0 };
 
+  const canOffer = tools.some((t) => t.toolSpec?.name === 'offer_document');
+  if (!toolResults.length && canOffer && /\b(build|create|draft|write|make|need)\b.*\b(policy|handbook|document|receipt|acknowledg)/i.test(userText)) {
+    const id = /fmla/i.test(userText) ? 'fmla-policy' : /receipt|acknowledg/i.test(userText) ? 'acknowledgment-receipt' : 'personnel-policies';
+    const town = userText.match(/\b((?:Town|City) of [A-Z][\w ]+?)\b(?=[.,?!]|$)/);
+    return { stopReason: 'tool_use', usage, content: [{ toolUse: { toolUseId: 'mock-doc', name: 'offer_document', input: { template_id: id, ...(town ? { prefill: { municipality_name: town[1] } } : {}) } } }] };
+  }
+  if (toolResults.length && toolResults[0].toolResult.content[0].json?.shown) {
+    const text = `**Mock answer.** I can build OMAG's ${toolResults[0].toolResult.content[0].json.title} for you. Answer a few questions and you'll get the Word file to review with your attorney before adoption.`;
+    onText?.(text);
+    return { stopReason: 'end_turn', usage, content: [{ text }] };
+  }
   if (!toolResults.length) {
     return { stopReason: 'tool_use', usage, content: [{ toolUse: { toolUseId: 'mock-1', name: 'search_law', input: { query: userText } } }] };
   }
