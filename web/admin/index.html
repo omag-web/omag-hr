@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Pip Admin – OMAG</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#16324f;--navy-2:#1f4166;--navy-3:#24486e;--navy-line:#2c4c6f;
+  --accent:#3a6a9a;--accent-dk:#2b5785;--accent-bg:#eaf1f8;--accent-line:#c9daea;
+  --gold:#d4a72c;--gold-bg:#fbf6e6;--gold-line:#ecdcaa;
+  --ink:#1c2733;--ink-2:#3c4855;--muted:#5a6675;--line:#e3e7ec;--line-2:#d3dae2;--bg:#f6f7f9;
+  --ok:#1f7a4d;--ok-bg:#e8f5ee;--warn:#8a5a00;--warn-bg:#fdf3dc;--bad:#b4332b;--bad-bg:#fbeaea;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font-family:'Public Sans',system-ui,sans-serif;color:var(--ink);background:var(--bg);font-size:15px;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:var(--accent-dk)}
+:focus-visible{outline:3px solid #7fb0e0;outline-offset:2px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+[hidden]{display:none!important}
+
+/* layout */
+.app{display:flex;min-height:100vh}
+.side{width:236px;flex:none;background:var(--navy);color:#e8eef5;display:flex;flex-direction:column;gap:18px;padding:18px 12px;position:sticky;top:0;height:100vh}
+.brand{display:flex;align-items:center;gap:10px;padding:2px 8px}
+.brand svg{width:38px;height:38px}
+.brand b{display:block;font-size:15px}
+.brand span{font-size:12px;color:#a9bccf}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav button{display:flex;align-items:center;gap:10px;min-height:40px;padding:0 12px;border:none;border-radius:8px;background:none;color:#dbe5ef;font-size:14px;text-align:left;border-left:3px solid transparent}
+.nav button:hover{background:var(--navy-2);color:#fff}
+.nav button[aria-current="page"]{background:var(--navy-3);color:#fff;border-left-color:var(--gold)}
+.nav .count{margin-left:auto;font-size:11px;font-weight:700;background:var(--gold);color:var(--navy);border-radius:999px;padding:1px 7px}
+.side-foot{margin-top:auto;border-top:1px solid var(--navy-line);padding:12px 8px 0;font-size:12.5px;color:#a9bccf;display:flex;flex-direction:column;gap:8px}
+.side-foot button{background:none;border:1px solid var(--navy-line);color:#dbe5ef;border-radius:8px;min-height:34px}
+.side-foot a{color:#dbe5ef}
+.main{flex:1;min-width:0;padding:26px 32px 60px}
+.page-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+.page-head h1{margin:0;font-size:24px;letter-spacing:-.3px}
+.page-head p{margin:4px 0 0;color:var(--muted);font-size:14px;max-width:720px;line-height:1.5}
+.banner{padding:10px 14px;border-radius:10px;background:var(--gold-bg);border:1px solid var(--gold-line);color:#3d3110;font-size:13.5px;margin-bottom:16px}
+
+/* pieces */
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px}
+.card h2{margin:0 0 4px;font-size:16px}
+.card .sub{margin:0 0 12px;color:var(--muted);font-size:13px;line-height:1.45}
+.grid{display:grid;gap:16px}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.split{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:16px;align-items:start}
+.stat .label{font-size:12.5px;color:var(--muted);font-weight:600}
+.stat .value{font-size:28px;font-weight:700;margin-top:4px;letter-spacing:-.5px}
+.stat .hint{font-size:12.5px;color:var(--muted);margin-top:2px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:38px;padding:0 14px;border-radius:8px;border:1px solid var(--line-2);background:#fff;font-size:14px;font-weight:600;white-space:nowrap}
+.btn:hover{background:#f3f6f9}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{background:var(--accent-dk)}
+.btn.danger{color:var(--bad);border-color:#f0c4c0}
+.btn.sm{min-height:32px;padding:0 10px;font-size:13px}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label,.label-s{font-size:13px;font-weight:600;color:var(--ink-2)}
+.hint{font-size:12.5px;color:var(--muted);line-height:1.45}
+.input,.select,textarea{width:100%;border:1px solid #c4ced8;border-radius:8px;padding:8px 11px;background:#fff;font-size:14.5px}
+.input:focus,.select:focus,textarea:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px rgba(58,106,154,.16)}
+textarea.code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13.5px;line-height:1.55;min-height:440px;resize:vertical}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}
+.pill.ok{background:var(--ok-bg);color:var(--ok)}.pill.warn{background:var(--warn-bg);color:var(--warn)}.pill.bad{background:var(--bad-bg);color:var(--bad)}.pill.muted{background:#eef1f4;color:var(--ink-2)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:700;padding:8px 10px;border-bottom:1px solid var(--line)}
+td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
+tr.click:hover td{background:#f7f9fb;cursor:pointer}
+.empty{padding:28px;text-align:center;color:var(--muted);font-size:14px}
+.trunc{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px}
+details summary{cursor:pointer;font-weight:600;font-size:14px}
+.locked{font-size:13px;color:var(--ink-2);line-height:1.55;background:#f7f9fb;border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin-top:10px}
+.locked ul{margin:6px 0 0;padding-left:18px}
+
+/* chart */
+.chart{position:relative;height:150px;display:flex;align-items:flex-end;gap:2px;padding:0 2px;border-bottom:1px solid var(--line)}
+.bar{flex:1;min-width:3px;display:flex;align-items:flex-end;height:100%;position:relative}
+.bar i{display:block;width:100%;background:var(--accent);border-radius:4px 4px 0 0;min-height:0}
+.bar:hover i,.bar:focus i{background:var(--navy)}
+.bar .tip{display:none;position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;font-size:12px;padding:4px 8px;border-radius:6px;white-space:nowrap;z-index:2;pointer-events:none}
+.bar:hover .tip,.bar:focus .tip{display:block}
+.axis{display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);margin-top:6px}
+
+/* chat preview */
+.chat{display:flex;flex-direction:column;gap:12px;max-height:520px;overflow:auto;padding:4px 2px 2px}
+.q{align-self:flex-end;background:var(--accent-bg);border-radius:12px 12px 3px 12px;padding:8px 12px;max-width:88%;font-size:14px}
+.a{font-size:14px;line-height:1.6}
+.a p{margin:0 0 8px}.a ul,.a ol{margin:0 0 8px;padding-left:20px}
+.a .status{color:var(--muted);font-size:13px}
+.cite{display:inline-flex;padding:0 7px;margin:0 1px;border-radius:6px;background:var(--accent-bg);border:1px solid var(--accent-line);color:var(--accent-dk);font-size:12px;font-weight:600;white-space:nowrap;line-height:1.7}
+.cite:hover{background:#dce9f6}
+.cite.omag{background:var(--gold-bg);border-color:var(--gold-line);color:#5c4400}
+
+/* drop zone */
+.drop{border:2px dashed var(--line-2);border-radius:12px;padding:22px;text-align:center;color:var(--muted);font-size:14px;transition:.15s}
+.drop.over{border-color:var(--accent);background:var(--accent-bg);color:var(--accent-dk)}
+
+/* drawer / modal */
+.scrim{position:fixed;inset:0;background:rgba(14,30,48,.4);z-index:40}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(640px,100%);background:#fff;z-index:50;display:flex;flex-direction:column;box-shadow:-8px 0 30px rgba(14,30,48,.2)}
+.drawer header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line)}
+.drawer header h2{margin:0;font-size:17px}
+.drawer .body{padding:18px 20px;overflow:auto;flex:1}
+.icon-btn{width:36px;height:36px;border-radius:8px;border:none;background:transparent;display:inline-flex;align-items:center;justify-content:center;color:var(--muted)}
+.icon-btn:hover{background:#f1f4f7;color:var(--ink)}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--navy);color:#fff;padding:11px 18px;border-radius:10px;font-size:14px;z-index:90;box-shadow:0 8px 24px rgba(14,30,48,.3);max-width:90vw}
+
+/* login */
+.login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:var(--navy)}
+.login .card{width:min(400px,100%);padding:28px;display:flex;flex-direction:column;gap:14px}
+.login h1{margin:0;font-size:20px}
+.err{color:var(--bad);font-size:13.5px}
+
+@media (max-width:980px){
+  .app{flex-direction:column}
+  .side{width:auto;height:auto;position:static;flex-direction:row;flex-wrap:wrap;align-items:center}
+  .nav{flex-direction:row;flex-wrap:wrap}
+  .side-foot{margin:0;border:none;padding:0;flex-direction:row}
+  .main{padding:18px 14px 40px}
+  .g4{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .g2,.split{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- ===== Sign in ===== -->
+<div class="login" id="login" hidden>
+  <form class="card" id="login-form" autocomplete="on">
+    <div class="row" style="gap:12px"><span id="login-icon" style="width:44px;height:44px;display:inline-flex"></span><div><h1>Pip admin</h1><div class="hint">OMAG staff only</div></div></div>
+    <div id="login-step-pw">
+      <div class="field"><label for="li-email">Email</label><input class="input" id="li-email" type="email" autocomplete="username" required></div>
+      <div class="field" style="margin-top:10px"><label for="li-pw">Password</label><input class="input" id="li-pw" type="password" autocomplete="current-password" required></div>
+    </div>
+    <div id="login-step-new" hidden>
+      <p class="hint" style="margin:0">Choose your own password: at least 12 characters, with upper- and lowercase letters and a number.</p>
+      <div class="field" style="margin-top:10px"><label for="li-new">New password</label><input class="input" id="li-new" type="password" autocomplete="new-password"></div>
+    </div>
+    <div id="login-step-reset" hidden>
+      <p class="hint" style="margin:0">We emailed a code to your address. Enter it and choose a new password.</p>
+      <div class="field" style="margin-top:10px"><label for="li-code">Code</label><input class="input" id="li-code" inputmode="numeric" autocomplete="one-time-code"></div>
+      <div class="field" style="margin-top:10px"><label for="li-reset-pw">New password</label><input class="input" id="li-reset-pw" type="password" autocomplete="new-password"></div>
+    </div>
+    <div class="err" id="login-err" role="alert"></div>
+    <button class="btn primary" type="submit" id="login-btn">Sign in</button>
+    <button class="btn" type="button" id="forgot-btn" style="border:none;background:none;color:var(--accent-dk);font-weight:600">Forgot password?</button>
+  </form>
+</div>
+
+<!-- ===== App ===== -->
+<div class="app" id="app" hidden>
+  <nav class="side" aria-label="Admin sections">
+    <div class="brand"><span id="side-icon" style="display:inline-flex"></span><div><b>Pip admin</b><span>OMAG's HR assistant</span></div></div>
+    <div class="nav" id="nav">
+      <button data-page="overview" aria-current="page">Overview</button>
+      <button data-page="instructions">Instructions</button>
+      <button data-page="documents">OMAG documents</button>
+      <button data-page="conversations">Conversations</button>
+      <button data-page="messages">Talk to OMAG <span class="count" id="msg-count" hidden></span></button>
+      <button data-page="settings">Settings</button>
+      <button data-page="library">Statute library</button>
+    </div>
+    <div class="side-foot">
+      <span id="who"></span>
+      <a href="../" target="_blank" rel="noopener">Open Pip ↗</a>
+      <button type="button" id="signout">Sign out</button>
+    </div>
+  </nav>
+  <main class="main" id="main" tabindex="-1">
+    <div class="banner" id="dev-banner" hidden><strong>Local mode.</strong> No sign-in, and changes are kept in memory only until the dev server stops.</div>
+
+    <!-- Overview -->
+    <section data-section="overview">
+      <div class="page-head"><div><h1>Overview</h1><p>The last 30 days of member questions. Admin previews aren't counted.</p></div></div>
+      <div class="grid g4" id="ov-stats"></div>
+      <div class="split" style="margin-top:16px">
+        <div class="card"><h2>Questions per day</h2><p class="sub">Last 30 days</p><div id="ov-chart"></div></div>
+        <div class="card"><h2>Pip's setup</h2><div id="ov-setup" class="hint" style="font-size:14px;line-height:1.8"></div></div>
+      </div>
+    </section>
+
+    <!-- Instructions -->
+    <section data-section="instructions" hidden>
+      <div class="page-head">
+        <div><h1>Instructions</h1><p>OMAG's guidance for how Pip answers: tone, standing rules, when to send members to OMAG. Edit a draft, test it in the preview, then publish. Members only see published instructions.</p></div>
+      </div>
+      <div class="split">
+        <div class="card">
+          <div class="row" style="justify-content:space-between;margin-bottom:10px">
+            <div class="row"><strong>Draft</strong><span id="ins-state" class="pill muted"></span></div>
+            <span class="hint" id="ins-live-meta"></span>
+          </div>
+          <label for="ins-text" class="sr-only">Instructions</label>
+          <textarea id="ins-text" class="code" spellcheck="true"></textarea>
+          <div class="row" style="margin-top:12px;justify-content:space-between">
+            <div class="row">
+              <button class="btn" id="ins-save">Save draft</button>
+              <button class="btn" id="ins-discard">Discard draft</button>
+            </div>
+            <div class="row">
+              <label for="ins-note" class="sr-only">Change note</label>
+              <input class="input" id="ins-note" placeholder="What changed? (optional)" style="width:220px">
+              <button class="btn primary" id="ins-publish">Publish</button>
+            </div>
+          </div>
+          <details style="margin-top:16px">
+            <summary>What Pip always does (can't be edited here)</summary>
+            <div class="locked">These rules are built into Pip's code so they can't be removed by accident:
+              <ul>
+                <li>Says it's an AI assistant provided by OMAG, not OMAG staff and not a lawyer.</li>
+                <li>Searches the statute library and reads the actual sections before answering legal questions.</li>
+                <li>Cites only sections it actually read; unverified citations are removed automatically.</li>
+                <li>Never presents itself as legal counsel.</li>
+                <li>Uses the member's selected form of government and its Title 11 starting points.</li>
+              </ul>
+            </div>
+          </details>
+          <details style="margin-top:12px" id="ins-history-box">
+            <summary>Version history</summary>
+            <div id="ins-history" style="margin-top:10px"></div>
+          </details>
+        </div>
+        <div class="card">
+          <div class="row" style="justify-content:space-between;margin-bottom:6px">
+            <h2>Preview</h2>
+            <div class="row">
+              <label for="pv-form" class="sr-only">Form of government</label>
+              <select class="select" id="pv-form" style="width:auto;padding:5px 8px;font-size:13px">
+                <option value="town">Statutory Town</option><option value="aldermanic">Aldermanic City</option><option value="cm">Council-Manager City</option><option value="strong">Strong-Mayor-Council City</option><option value="charter">Charter City</option>
+              </select>
+              <button class="btn sm" id="pv-reset">Clear</button>
+            </div>
+          </div>
+          <p class="sub">Uses the text in the editor (even unsaved). Previews aren't shown to members or counted in stats.</p>
+          <div class="chat" id="pv-chat"><div class="empty">Ask a question to see how Pip answers with these instructions.</div></div>
+          <form class="row" id="pv-form-ask" style="margin-top:12px;flex-wrap:nowrap">
+            <label for="pv-q" class="sr-only">Test question</label>
+            <input class="input" id="pv-q" placeholder="e.g. Can the mayor suspend an employee?" autocomplete="off">
+            <button class="btn primary" type="submit" id="pv-send">Ask</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- Documents -->
+    <section data-section="documents" hidden>
+      <div class="page-head"><div><h1>OMAG documents</h1><p>Upload OMAG guidance (memos, FAQs, sample policies, program guides). Pip searches the documents that are switched on and cites them as "OMAG". Statutes and regulations still take priority over guidance.</p></div></div>
+      <div class="card" style="margin-bottom:16px">
+        <div class="drop" id="drop">
+          <p style="margin:0 0 10px"><strong>Drop a PDF, Word (.docx) or text file here</strong>, or</p>
+          <label class="btn" for="file-input" style="cursor:pointer">Choose a file</label>
+          <input type="file" id="file-input" accept=".pdf,.docx,.txt,.md" class="sr-only">
+          <p class="hint" style="margin:10px 0 0">Up to 15 MB. Scanned PDFs need OCR first (they're pictures of text).</p>
+        </div>
+        <div id="upload-status" class="hint" style="margin-top:10px" role="status"></div>
+      </div>
+      <div class="card" style="padding:6px 6px 0"><div id="docs-table"></div></div>
+    </section>
+
+    <!-- Conversations -->
+    <section data-section="conversations" hidden>
+      <div class="page-head">
+        <div><h1>Conversations</h1><p>What members asked and what Pip answered. Click a row to see the whole conversation. Members aren't identified; only the city they typed, if any.</p></div>
+        <div class="row">
+          <label for="cv-days" class="sr-only">Time range</label>
+          <select class="select" id="cv-days" style="width:auto"><option value="7">Last 7 days</option><option value="14" selected>Last 14 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option></select>
+          <label class="row" style="gap:6px;font-size:14px"><input type="checkbox" id="cv-down"> 👎 only</label>
+          <label for="cv-search" class="sr-only">Search</label>
+          <input class="input" id="cv-search" placeholder="Search questions…" style="width:200px">
+        </div>
+      </div>
+      <div class="card" style="padding:6px 6px 0"><div id="cv-table"></div></div>
+    </section>
+
+    <!-- Messages -->
+    <section data-section="messages" hidden>
+      <div class="page-head"><div><h1>Talk to OMAG</h1><p>Messages members sent with the "Talk to OMAG" button. Each one was also emailed to the contact address.</p></div></div>
+      <div id="msg-list" class="grid"></div>
+    </section>
+
+    <!-- Settings -->
+    <section data-section="settings" hidden>
+      <div class="page-head"><div><h1>Settings</h1><p>Changes take effect within a minute. No redeploy needed.</p></div><button class="btn primary" id="set-save">Save settings</button></div>
+      <div class="grid g2">
+        <div class="card">
+          <h2>Welcome screen</h2>
+          <div class="field" style="margin-top:10px"><label for="set-welcome">Intro text under "Hi, I'm Pip"</label><textarea id="set-welcome" rows="3"></textarea></div>
+          <div class="label-s" style="margin-top:14px">Starter questions <span class="hint">(up to 6)</span></div>
+          <div id="set-starters" class="grid" style="gap:8px;margin-top:8px"></div>
+          <button class="btn sm" id="set-add-starter" style="margin-top:8px">Add a starter</button>
+        </div>
+        <div class="grid" style="gap:16px">
+          <div class="card">
+            <h2>Contact &amp; disclaimer</h2>
+            <div class="field" style="margin-top:10px"><label for="set-disclaimer">Disclaimer under the message box</label><textarea id="set-disclaimer" rows="3"></textarea></div>
+            <div class="field" style="margin-top:10px"><label for="set-phone">OMAG phone shown in "Talk to OMAG"</label><input class="input" id="set-phone"></div>
+          </div>
+          <div class="card">
+            <h2>Model &amp; limits</h2>
+            <div class="field" style="margin-top:10px"><label for="set-model">AI model</label><select class="select" id="set-model"></select><span class="hint">Run a few questions in the Instructions preview after switching.</span></div>
+            <div class="grid g2" style="margin-top:10px;gap:10px">
+              <div class="field"><label for="set-ip">Questions per person per day</label><input class="input" id="set-ip" type="number" min="0"></div>
+              <div class="field"><label for="set-global">Questions per day, everyone</label><input class="input" id="set-global" type="number" min="0"></div>
+            </div>
+            <p class="hint" style="margin:8px 0 0">The daily total is your spending ceiling. Set it to 0 to pause Pip for everyone.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Library -->
+    <section data-section="library" hidden>
+      <div class="page-head"><div><h1>Statute library</h1><p>The Oklahoma statutes and federal regulations Pip searches. A GitHub Action rebuilds it from official sources monthly, and Pip picks up the new version automatically within a day.</p></div><button class="btn" id="lib-refresh">Check for updates now</button></div>
+      <div class="grid g4" id="lib-stats"></div>
+      <div class="card" style="margin-top:16px">
+        <h2>Search the library</h2>
+        <p class="sub">See what Pip finds for a set of words, the same way it searches when answering.</p>
+        <form class="row" id="lib-search-form" style="flex-wrap:nowrap">
+          <label for="lib-q" class="sr-only">Search</label>
+          <input class="input" id="lib-q" placeholder="e.g. executive session personnel">
+          <label for="lib-j" class="sr-only">Source</label>
+          <select class="select" id="lib-j" style="width:auto"><option value="">Everything</option><option value="OK">Oklahoma statutes</option><option value="US">Federal regulations</option><option value="OMAG">OMAG documents</option></select>
+          <button class="btn primary" type="submit">Search</button>
+        </form>
+        <div id="lib-results" style="margin-top:12px"></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="overlay"></div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="../config.js"></script>
+<script>
+(function () {
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const LOCAL = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+const API = LOCAL ? location.origin + '/api' : String((window.PIP_CONFIG || {}).apiUrl || '').replace(/\/$/, '');
+const PUBLIC_API = LOCAL ? location.origin : API;
+const FORM_LABEL = { town: 'Statutory Town', aldermanic: 'Aldermanic City', cm: 'Council-Manager City', strong: 'Strong-Mayor-Council City', charter: 'Charter City' };
+const ICON = (dark) => `<svg viewBox="0 0 64 64" width="100%" height="100%" aria-hidden="true">${dark ? '' : '<rect width="64" height="64" rx="15" fill="#16324f"/>'}<path d="M14 12h36a6 6 0 0 1 6 6v22a6 6 0 0 1-6 6H28l-10 9v-9h-4a6 6 0 0 1-6-6V18a6 6 0 0 1 6-6z" fill="#fff"/><circle cx="32" cy="29" r="7.5" fill="#d4a72c"/></svg>`;
+const fmtDate = (iso) => iso ? new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+const fmtDay = (iso) => iso ? new Date(iso + (iso.length === 10 ? 'T12:00:00' : '')).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
+
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => (t.hidden = true), 3500); }
+
+/* ================= AUTH (Cognito, no SDK) ================= */
+let AUTH = null;
+const tok = {
+  get id() { return sessionStorage.getItem('pip.admin.id'); },
+  get refresh() { return sessionStorage.getItem('pip.admin.refresh'); },
+  get email() { return sessionStorage.getItem('pip.admin.email'); },
+  set(r, email) {
+    if (r.IdToken) sessionStorage.setItem('pip.admin.id', r.IdToken);
+    if (r.RefreshToken) sessionStorage.setItem('pip.admin.refresh', r.RefreshToken);
+    if (email) sessionStorage.setItem('pip.admin.email', email);
+  },
+  clear() { ['id', 'refresh', 'email'].forEach((k) => sessionStorage.removeItem('pip.admin.' + k)); }
+};
+async function cognito(target, body) {
+  const r = await fetch(`https://cognito-idp.${AUTH.region}.amazonaws.com/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-amz-json-1.1', 'X-Amz-Target': 'AWSCognitoIdentityProviderService.' + target },
+    body: JSON.stringify(body)
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    const type = String(j.__type || '').split('#').pop();
+    const msg = {
+      NotAuthorizedException: 'Incorrect email or password.',
+      UserNotFoundException: 'Incorrect email or password.',
+      InvalidPasswordException: 'That password doesn’t meet the rules: at least 12 characters with upper- and lowercase letters and a number.',
+      CodeMismatchException: 'That code isn’t right.',
+      ExpiredCodeException: 'That code expired. Click "Forgot password?" again.',
+      LimitExceededException: 'Too many attempts. Wait a few minutes and try again.',
+      PasswordResetRequiredException: 'You need to reset your password. Click "Forgot password?".'
+    }[type] || j.message || 'Sign-in failed.';
+    throw Object.assign(new Error(msg), { type });
+  }
+  return j;
+}
+async function refreshToken() {
+  if (!tok.refresh) return false;
+  try {
+    const r = await cognito('InitiateAuth', { AuthFlow: 'REFRESH_TOKEN_AUTH', ClientId: AUTH.clientId, AuthParameters: { REFRESH_TOKEN: tok.refresh } });
+    tok.set(r.AuthenticationResult); return true;
+  } catch { return false; }
+}
+
+let loginState = { step: 'pw', session: null, email: '' };
+function showLogin(msg) {
+  $('#app').hidden = true; $('#login').hidden = false;
+  $('#login-icon').innerHTML = ICON();
+  setLoginStep('pw');
+  $('#login-err').textContent = msg || '';
+  $('#li-email').focus();
+}
+function setLoginStep(step) {
+  loginState.step = step;
+  $('#login-step-pw').hidden = step !== 'pw';
+  $('#login-step-new').hidden = step !== 'new';
+  $('#login-step-reset').hidden = step !== 'reset';
+  $('#forgot-btn').hidden = step !== 'pw';
+  $('#login-btn').textContent = { pw: 'Sign in', new: 'Set password and sign in', reset: 'Reset password' }[step];
+  $('#li-pw').required = step === 'pw';
+}
+$('#login-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = $('#login-btn'); btn.disabled = true; $('#login-err').textContent = '';
+  try {
+    if (loginState.step === 'pw') {
+      loginState.email = $('#li-email').value.trim().toLowerCase();
+      const r = await cognito('InitiateAuth', { AuthFlow: 'USER_PASSWORD_AUTH', ClientId: AUTH.clientId, AuthParameters: { USERNAME: loginState.email, PASSWORD: $('#li-pw').value } });
+      if (r.ChallengeName === 'NEW_PASSWORD_REQUIRED') { loginState.session = r.Session; setLoginStep('new'); $('#li-new').focus(); return; }
+      tok.set(r.AuthenticationResult, loginState.email);
+    } else if (loginState.step === 'new') {
+      const r = await cognito('RespondToAuthChallenge', { ChallengeName: 'NEW_PASSWORD_REQUIRED', ClientId: AUTH.clientId, Session: loginState.session, ChallengeResponses: { USERNAME: loginState.email, NEW_PASSWORD: $('#li-new').value } });
+      tok.set(r.AuthenticationResult, loginState.email);
+    } else {
+      await cognito('ConfirmForgotPassword', { ClientId: AUTH.clientId, Username: loginState.email, ConfirmationCode: $('#li-code').value.trim(), Password: $('#li-reset-pw').value });
+      setLoginStep('pw'); $('#li-pw').value = ''; $('#login-err').textContent = ''; toast('Password reset. Sign in with your new password.'); return;
+    }
+    $('#li-pw').value = ''; $('#li-new').value = '';
+    startApp();
+  } catch (err) {
+    $('#login-err').textContent = err.message;
+  } finally { btn.disabled = false; }
+});
+$('#forgot-btn').addEventListener('click', async () => {
+  const email = $('#li-email').value.trim().toLowerCase();
+  if (!email) { $('#login-err').textContent = 'Enter your email first.'; $('#li-email').focus(); return; }
+  try {
+    await cognito('ForgotPassword', { ClientId: AUTH.clientId, Username: email });
+    loginState.email = email; setLoginStep('reset'); $('#li-code').focus();
+  } catch (err) { $('#login-err').textContent = err.message; }
+});
+$('#signout').addEventListener('click', () => { tok.clear(); location.reload(); });
+
+/* ================= API ================= */
+async function api(method, path, body, retry = true) {
+  const headers = { 'content-type': 'application/json' };
+  if (tok.id) headers.authorization = 'Bearer ' + tok.id;
+  const r = await fetch(API + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  if (r.status === 401 && !AUTH.local) {
+    if (retry && (await refreshToken())) return api(method, path, body, false);
+    tok.clear(); showLogin('Your session ended. Please sign in again.'); throw new Error('signed out');
+  }
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || `Request failed (${r.status})`);
+  return j;
+}
+const fail = (e) => { if (e.message !== 'signed out') toast(e.message); };
+
+/* ================= NAV ================= */
+const loaders = {};
+let current = 'overview';
+function go(page) {
+  current = page;
+  $$('#nav button').forEach((b) => (b.getAttribute('aria-current') === 'page' ? b.removeAttribute('aria-current') : 0, b.dataset.page === page && b.setAttribute('aria-current', 'page')));
+  $$('[data-section]').forEach((s) => (s.hidden = s.dataset.section !== page));
+  history.replaceState(null, '', '#' + page);
+  loaders[page]?.().catch(fail);
+  $('#main').focus({ preventScroll: true });
+}
+$('#nav').addEventListener('click', (e) => { const b = e.target.closest('[data-page]'); if (b) go(b.dataset.page); });
+
+/* ================= OVERVIEW ================= */
+loaders.overview = async () => {
+  const o = await api('GET', '/admin/overview');
+  const s = o.stats;
+  const rated = s.up + s.down;
+  $('#ov-stats').innerHTML = [
+    ['Questions', s.questions, `${s.conversations} conversation${s.conversations === 1 ? '' : 's'}`],
+    ['Helpful 👍', s.up, rated ? `${Math.round((s.up / rated) * 100)}% of rated answers` : 'No ratings yet'],
+    ['Not helpful 👎', s.down, s.down ? 'Review in Conversations' : '—'],
+    ['Errors', s.errors, s.errors ? 'See CloudWatch logs' : 'None']
+  ].map(([l, v, h]) => `<div class="card stat"><div class="label">${l}</div><div class="value">${v}</div><div class="hint">${esc(h)}</div></div>`).join('');
+  const days = Object.entries(s.byDay);
+  const max = Math.max(1, ...days.map(([, n]) => n));
+  $('#ov-chart').innerHTML = `<div class="chart" role="img" aria-label="Questions per day for the last 30 days, ${s.questions} total, peak ${max}">${days.map(([d, n]) => `<div class="bar" tabindex="0"><i style="height:${(n / max) * 100}%"></i><span class="tip">${fmtDay(d)}: ${n} question${n === 1 ? '' : 's'}</span></div>`).join('')}</div>
+    <div class="axis"><span>${fmtDay(days[0]?.[0])}</span><span>peak ${max}/day</span><span>${fmtDay(days.at(-1)?.[0])}</span></div>
+    <details style="margin-top:8px"><summary class="hint" style="font-weight:500">Show as table</summary><table style="margin-top:6px"><thead><tr><th>Day</th><th>Questions</th></tr></thead><tbody>${days.filter(([, n]) => n).map(([d, n]) => `<tr><td>${fmtDay(d)}</td><td>${n}</td></tr>`).join('') || '<tr><td colspan="2" class="hint">No questions yet</td></tr>'}</tbody></table></details>`;
+  const lib = o.library;
+  $('#ov-setup').innerHTML = `
+    <div><strong>Model:</strong> ${esc(o.model)}</div>
+    <div><strong>Instructions:</strong> ${o.guidance.default ? 'original default' : `published ${fmtDate(o.guidance.publishedAt)} by ${esc(o.guidance.publishedBy)}`}</div>
+    <div><strong>Statute library:</strong> ${lib.statuteSections.toLocaleString()} sections, built ${fmtDay(String(lib.builtAt).slice(0, 10))}</div>
+    <div><strong>OMAG documents:</strong> ${o.docs.enabled} on${o.docs.total > o.docs.enabled ? `, ${o.docs.total - o.docs.enabled} off` : ''} (${lib.omagSections} sections)</div>`;
+};
+
+/* ================= INSTRUCTIONS ================= */
+let ins = null;
+let insDirty = false;
+function renderIns() {
+  const ta = $('#ins-text');
+  if (!insDirty) ta.value = ins.draft ? ins.draft.text : ins.live.text;
+  const state = insDirty ? ['Unsaved changes', 'warn'] : ins.draft ? (ins.draft.differs ? ['Draft saved, not published', 'warn'] : ['Draft matches live', 'muted']) : ['Same as live', 'ok'];
+  $('#ins-state').textContent = state[0]; $('#ins-state').className = 'pill ' + state[1];
+  $('#ins-live-meta').textContent = ins.live.isDefault ? 'Live: original default' : `Live since ${fmtDate(ins.live.publishedAt)} · ${ins.live.publishedBy || ''}`;
+  $('#ins-discard').disabled = !ins.draft && !insDirty;
+  $('#ins-publish').disabled = !ins.draft && !insDirty;
+  $('#ins-history').innerHTML = (ins.history.length ? `<table><tbody>${ins.history.map((h) => `<tr><td style="width:150px">${fmtDate(h.publishedAt)}</td><td>${esc(h.note || '—')}<div class="hint">${esc(h.publishedBy || '')}</div></td><td style="text-align:right"><button class="btn sm" data-restore="${esc(h.id)}">Load into draft</button></td></tr>`).join('')}</tbody></table>` : '<p class="hint">No published versions yet.</p>')
+    + `<div style="margin-top:10px"><button class="btn sm" data-restore="default">Load the original default into draft</button></div>`;
+}
+loaders.instructions = async () => { ins = await api('GET', '/admin/guidance'); renderIns(); };
+$('#ins-text').addEventListener('input', () => { insDirty = true; renderIns(); });
+$('#ins-save').addEventListener('click', async () => {
+  try { ins = await api('PUT', '/admin/guidance/draft', { text: $('#ins-text').value }); insDirty = false; renderIns(); toast('Draft saved.'); } catch (e) { fail(e); }
+});
+$('#ins-discard').addEventListener('click', async () => {
+  if (!confirm('Discard the draft and go back to the live instructions?')) return;
+  try { ins = await api('DELETE', '/admin/guidance/draft'); insDirty = false; renderIns(); toast('Draft discarded.'); } catch (e) { fail(e); }
+});
+$('#ins-publish').addEventListener('click', async () => {
+  if (!confirm('Publish these instructions? Members will get answers based on them within a minute.')) return;
+  try {
+    if (insDirty) { await api('PUT', '/admin/guidance/draft', { text: $('#ins-text').value }); insDirty = false; }
+    ins = await api('POST', '/admin/guidance/publish', { note: $('#ins-note').value.trim() });
+    $('#ins-note').value = ''; renderIns(); toast('Published. Pip is using the new instructions.');
+  } catch (e) { fail(e); }
+});
+$('#ins-history').addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-restore]'); if (!b) return;
+  if (insDirty && !confirm('Replace your unsaved changes?')) return;
+  try { ins = await api('POST', '/admin/guidance/restore', { id: b.dataset.restore }); insDirty = false; renderIns(); toast('Loaded into the draft. Review it, then publish.'); } catch (e) { fail(e); }
+});
+window.addEventListener('beforeunload', (e) => { if (insDirty) { e.preventDefault(); e.returnValue = ''; } });
+
+/* --- preview chat --- */
+let pv = { id: null, messages: [], busy: false };
+const newPvId = () => 'pv_' + Math.random().toString(36).slice(2, 12);
+function citeChip(id, label) { return `<button type="button" class="cite${id.startsWith('omag-') ? ' omag' : ''}" data-cite="${esc(id)}">${esc(label)}</button>`; }
+function md(src, cites) {
+  const inline = (s) => esc(s)
+    .replace(/\[\[([^\]\n]{1,40})\]\]/g, (_, id) => { id = id.trim(); if (cites && !cites.has(id)) return ''; return ' ' + citeChip(id, cites ? cites.get(id) : id); })
+    .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+  const out = []; let list = null, para = [];
+  const fp = () => { if (para.length) { out.push(`<p>${inline(para.join(' '))}</p>`); para = []; } };
+  const fl = () => { if (list) { out.push(`<${list.t}>${list.i.map((x) => `<li>${inline(x)}</li>`).join('')}</${list.t}>`); list = null; } };
+  for (const raw of String(src).split('\n')) {
+    const l = raw.trim(); let m;
+    if (!l) { fp(); fl(); continue; }
+    if ((m = l.match(/^[-*•]\s+(.*)$/))) { fp(); if (!list || list.t !== 'ul') { fl(); list = { t: 'ul', i: [] }; } list.i.push(m[1]); continue; }
+    if ((m = l.match(/^\d{1,2}[.)]\s+(.*)$/))) { fp(); if (!list || list.t !== 'ol') { fl(); list = { t: 'ol', i: [] }; } list.i.push(m[1]); continue; }
+    if ((m = l.match(/^#{1,4}\s+(.*)$/))) { fp(); fl(); out.push(`<p><strong>${inline(m[1])}</strong></p>`); continue; }
+    fl(); para.push(l);
+  }
+  fp(); fl(); return out.join('');
+}
+async function streamChat(path, payload, onEvent) {
+  const headers = { 'content-type': 'application/json' };
+  if (tok.id) headers.authorization = 'Bearer ' + tok.id;
+  let r = await fetch(API + path, { method: 'POST', headers, body: JSON.stringify(payload) });
+  if (r.status === 401 && !AUTH.local && (await refreshToken())) { headers.authorization = 'Bearer ' + tok.id; r = await fetch(API + path, { method: 'POST', headers, body: JSON.stringify(payload) }); }
+  if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.error || `Request failed (${r.status})`); }
+  const reader = r.body.getReader(); const dec = new TextDecoder(); let buf = '';
+  for (;;) {
+    const { value, done } = await reader.read(); if (done) break;
+    buf += dec.decode(value, { stream: true }); let nl;
+    while ((nl = buf.indexOf('\n')) >= 0) { const line = buf.slice(0, nl).trim(); buf = buf.slice(nl + 1); if (line) onEvent(JSON.parse(line)); }
+  }
+}
+$('#pv-reset').addEventListener('click', () => { pv = { id: null, messages: [], busy: false }; $('#pv-chat').innerHTML = '<div class="empty">Ask a question to see how Pip answers with these instructions.</div>'; });
+$('#pv-form-ask').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const q = $('#pv-q').value.trim(); if (!q || pv.busy) return;
+  pv.busy = true; $('#pv-send').disabled = true; $('#pv-q').value = '';
+  pv.id ||= newPvId();
+  if (!pv.messages.length) $('#pv-chat').innerHTML = '';
+  pv.messages.push({ role: 'user', text: q });
+  const chat = $('#pv-chat');
+  chat.insertAdjacentHTML('beforeend', `<div class="q">${esc(q)}</div><div class="a"><div class="status">Thinking…</div><div class="body"></div></div>`);
+  const a = chat.lastElementChild; const body = $('.body', a); const status = $('.status', a);
+  let acc = '';
+  try {
+    await streamChat('/admin/preview', { conversationId: pv.id, form: $('#pv-form').value, guidance: $('#ins-text').value, messages: pv.messages }, (ev) => {
+      if (ev.type === 'status') status.textContent = ev.text + '…';
+      if (ev.type === 'text') { acc += ev.text; body.innerHTML = md(acc, null); chat.scrollTop = chat.scrollHeight; }
+      if (ev.type === 'reset') { acc = ''; body.innerHTML = ''; }
+      if (ev.type === 'error') throw new Error(ev.message);
+      if (ev.type === 'done') {
+        status.remove();
+        const cites = new Map(); (ev.citations || []).forEach((c) => { cites.set(c.marker || c.id, c.cite); cites.set(c.id, c.cite); });
+        body.innerHTML = md(acc, cites);
+        $$('.cite', body).forEach((b) => { const c = (ev.citations || []).find((x) => x.marker === b.dataset.cite || x.id === b.dataset.cite); if (c) b.dataset.cite = c.id; });
+        if (ev.unread?.length) body.insertAdjacentHTML('beforeend', `<p class="hint">Removed ${ev.unread.length} unverified reference${ev.unread.length > 1 ? 's' : ''}: ${esc(ev.unread.join(', '))}</p>`);
+        pv.messages.push({ role: 'assistant', text: acc });
+      }
+    });
+  } catch (err) {
+    status.remove(); body.innerHTML = `<p class="err">${esc(err.message)}</p>`; pv.messages.pop();
+  } finally { pv.busy = false; $('#pv-send').disabled = false; chat.scrollTop = chat.scrollHeight; $('#pv-q').focus(); }
+});
+
+/* ================= DOCUMENTS ================= */
+let docs = [];
+function renderDocs() {
+  if (!docs.length) { $('#docs-table').innerHTML = '<div class="empty">No documents yet. Upload OMAG guidance above and Pip will start citing it.</div>'; return; }
+  $('#docs-table').innerHTML = `<table><thead><tr><th>Document</th><th>Status</th><th>Sections</th><th>Used by Pip</th><th></th></tr></thead><tbody>${docs.map((d) => `
+    <tr>
+      <td><strong>${esc(d.title)}</strong><div class="hint">${esc(d.filename)} · ${(d.size / 1024).toFixed(0)} KB · ${fmtDate(d.uploadedAt)}</div>${d.error ? `<div class="err" style="margin-top:4px">${esc(d.error)}</div>` : ''}</td>
+      <td>${{ ready: '<span class="pill ok">Ready</span>', error: '<span class="pill bad">Problem</span>', uploading: '<span class="pill warn">Processing</span>' }[d.status] || esc(d.status)}</td>
+      <td>${d.sections ?? '—'}</td>
+      <td>${d.status === 'ready' ? `<label class="row" style="gap:6px"><input type="checkbox" data-toggle="${esc(d.id)}" ${d.enabled ? 'checked' : ''}> ${d.enabled ? 'On' : 'Off'}</label>` : '—'}</td>
+      <td style="text-align:right;white-space:nowrap">${d.status === 'ready' ? `<button class="btn sm" data-view="${esc(d.id)}">View</button> ` : ''}<button class="btn sm" data-rename="${esc(d.id)}">Rename</button> <button class="btn sm danger" data-del="${esc(d.id)}">Delete</button></td>
+    </tr>`).join('')}</tbody></table>`;
+}
+loaders.documents = async () => { docs = (await api('GET', '/admin/docs')).docs; renderDocs(); };
+async function uploadFile(file) {
+  const status = $('#upload-status');
+  const title = prompt('Title Pip should use when citing this document:', file.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' '));
+  if (title === null) return;
+  try {
+    status.textContent = `Uploading ${file.name}…`;
+    const up = await api('POST', '/admin/docs', { filename: file.name, size: file.size, title: title.trim() || file.name });
+    const put = await fetch(up.uploadUrl.startsWith('/') ? location.origin + up.uploadUrl : up.uploadUrl, { method: 'PUT', headers: { 'content-type': up.contentType }, body: file });
+    if (!put.ok) throw new Error('Upload failed. Try again.');
+    status.textContent = `Reading ${file.name}…`;
+    const r = await api('POST', `/admin/docs/${up.id}/process`);
+    status.textContent = `✓ ${title} is ready: ${r.sections} section${r.sections === 1 ? '' : 's'}. Pip can cite it now.`;
+  } catch (e) { status.textContent = '✗ ' + e.message; }
+  await loaders.documents().catch(fail);
+}
+$('#file-input').addEventListener('change', (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) uploadFile(f); });
+const drop = $('#drop');
+['dragenter', 'dragover'].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', (e) => { const f = e.dataTransfer.files[0]; if (f) uploadFile(f); });
+$('#docs-table').addEventListener('click', async (e) => {
+  const t = e.target.closest('[data-del],[data-rename],[data-view]'); if (!t) return;
+  try {
+    if (t.dataset.del) {
+      const d = docs.find((x) => x.id === t.dataset.del);
+      if (!confirm(`Delete "${d.title}"? Pip will stop citing it right away.`)) return;
+      docs = (await api('DELETE', `/admin/docs/${d.id}`)).docs; renderDocs(); toast('Deleted.');
+    } else if (t.dataset.rename) {
+      const d = docs.find((x) => x.id === t.dataset.rename);
+      const title = prompt('New title:', d.title); if (!title || title.trim() === d.title) return;
+      docs = (await api('PUT', `/admin/docs/${d.id}`, { title: title.trim() })).docs; renderDocs(); toast('Renamed.');
+    } else if (t.dataset.view) {
+      const d = docs.find((x) => x.id === t.dataset.view);
+      const { sections } = await api('GET', `/admin/docs/${d.id}/sections`);
+      openDrawer(d.title, `<p class="hint">How Pip sees this document: ${sections.length} section${sections.length === 1 ? '' : 's'}. Pip searches these and cites them as shown.</p>` +
+        (sections.length ? sections.map((s) => `<div class="card" style="margin-top:10px"><div class="row" style="justify-content:space-between"><strong>${esc(s.heading)}</strong><span class="cite omag">${esc(s.cite)}</span></div><p style="white-space:pre-wrap;font-size:13.5px;line-height:1.55;margin:8px 0 0">${esc(s.text)}</p></div>`).join('') : '<p class="hint">Switch the document on to see its sections.</p>'));
+    }
+  } catch (err) { fail(err); }
+});
+$('#docs-table').addEventListener('change', async (e) => {
+  const t = e.target.closest('[data-toggle]'); if (!t) return;
+  try { docs = (await api('PUT', `/admin/docs/${t.dataset.toggle}`, { enabled: t.checked })).docs; renderDocs(); toast(t.checked ? 'Pip can cite this document now.' : 'Pip will stop citing this document.'); } catch (err) { fail(err); t.checked = !t.checked; }
+});
+
+/* ================= CONVERSATIONS ================= */
+let turns = [];
+function renderTurns() {
+  const q = $('#cv-search').value.trim().toLowerCase();
+  const list = turns.filter((t) => (!$('#cv-down').checked || t.rating === 'down') && (!q || (t.question || '').toLowerCase().includes(q)));
+  $('#cv-table').innerHTML = list.length ? `<table><thead><tr><th style="width:120px">When</th><th>Question</th><th style="width:160px">Member</th><th style="width:70px">Rating</th></tr></thead><tbody>${list.map((t) => `
+    <tr class="click" data-conv="${esc(t.conversationId)}" tabindex="0">
+      <td class="hint">${fmtDate(t.at)}</td>
+      <td><div class="trunc">${esc(t.question)}</div>${t.error ? '<span class="pill bad" style="margin-top:4px">Error</span>' : ''}${t.unread?.length ? '<span class="pill warn" style="margin-top:4px">Removed citation</span>' : ''}</td>
+      <td class="hint">${esc(t.city || '—')}<br>${esc(FORM_LABEL[t.form] || '')}</td>
+      <td>${t.rating === 'up' ? '👍' : t.rating === 'down' ? '👎' : ''}</td>
+    </tr>`).join('')}</tbody></table>` : '<div class="empty">No conversations match.</div>';
+}
+loaders.conversations = async () => { turns = (await api('GET', `/admin/conversations?days=${$('#cv-days').value}`)).turns; renderTurns(); };
+$('#cv-days').addEventListener('change', () => loaders.conversations().catch(fail));
+$('#cv-down').addEventListener('change', renderTurns);
+$('#cv-search').addEventListener('input', renderTurns);
+async function openConversation(id) {
+  try {
+    const { turns: all } = await api('GET', `/admin/conversations/${encodeURIComponent(id)}`);
+    const f = all[0] || {};
+    openDrawer('Conversation', `<p class="hint">${esc(f.city || 'No municipality given')} · ${esc(FORM_LABEL[f.form] || 'No form of government')} · ${all.length} question${all.length === 1 ? '' : 's'}</p>` + all.map((t) => `
+      <div style="margin-top:16px">
+        <div class="q" style="margin-left:auto;width:fit-content">${esc(t.question)}</div>
+        <div class="a" style="margin-top:8px">${t.error ? `<p class="err">Error: ${esc(t.error)}</p>` : md(t.answer || '', new Map((t.citations || []).map((c) => [c, c])))}</div>
+        <div class="hint" style="margin-top:4px">${fmtDate(t.at)} · ${t.rating === 'up' ? '👍 helpful' : t.rating === 'down' ? '👎 not helpful' : 'not rated'}${t.ratingNote ? ` · “${esc(t.ratingNote)}”` : ''} · ${((t.latencyMs || 0) / 1000).toFixed(1)}s · ${esc(t.model || '')}${t.unread?.length ? ` · removed: ${esc(t.unread.join(', '))}` : ''}</div>
+      </div>`).join(''));
+  } catch (e) { fail(e); }
+}
+$('#cv-table').addEventListener('click', (e) => { const r = e.target.closest('[data-conv]'); if (r) openConversation(r.dataset.conv); });
+$('#cv-table').addEventListener('keydown', (e) => { const r = e.target.closest('[data-conv]'); if (r && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openConversation(r.dataset.conv); } });
+
+/* ================= MESSAGES ================= */
+loaders.messages = async () => {
+  const { contacts } = await api('GET', '/admin/contacts');
+  $('#msg-list').innerHTML = contacts.length ? contacts.map((c) => `
+    <div class="card">
+      <div class="row" style="justify-content:space-between"><strong>${esc(c.city || 'No municipality given')}</strong><span class="hint">${fmtDate(c.at)}</span></div>
+      <p style="margin:8px 0;white-space:pre-wrap">${esc(c.note || '(no note)')}</p>
+      ${c.transcript ? `<details><summary class="hint" style="font-weight:600">Conversation they sent</summary><pre style="white-space:pre-wrap;font:13px/1.55 'Public Sans',sans-serif;background:#f7f9fb;border-radius:8px;padding:10px;margin-top:8px">${esc(c.transcript)}</pre></details>` : ''}
+      ${c.conversationId ? `<button class="btn sm" style="margin-top:8px" data-conv="${esc(c.conversationId)}">Open conversation</button>` : ''}
+    </div>`).join('') : '<div class="card empty">No messages yet.</div>';
+};
+$('#msg-list').addEventListener('click', (e) => { const b = e.target.closest('[data-conv]'); if (b) openConversation(b.dataset.conv); });
+
+/* ================= SETTINGS ================= */
+let settings = null;
+function starterRow(s = {}) {
+  return `<div class="row starter" style="flex-wrap:nowrap">
+    <label class="sr-only">Label</label><input class="input" data-k="kicker" value="${esc(s.kicker || '')}" placeholder="Label" style="width:130px">
+    <label class="sr-only">Question</label><input class="input" data-k="text" value="${esc(s.text || '')}" placeholder="Question members can click">
+    <label class="row hint" style="gap:4px;white-space:nowrap" title="Opens a document template instead of asking Pip"><input type="checkbox" data-k="doc" ${s.doc ? 'checked' : ''}> Doc</label>
+    <button class="icon-btn" type="button" data-remove aria-label="Remove starter">✕</button>
+  </div>`;
+}
+loaders.settings = async () => {
+  const r = await api('GET', '/admin/settings'); settings = r.settings;
+  $('#set-welcome').value = settings.welcomeText; $('#set-disclaimer').value = settings.disclaimer; $('#set-phone').value = settings.contactPhone;
+  $('#set-ip').value = settings.dailyLimitPerIp; $('#set-global').value = settings.dailyLimitGlobal;
+  const models = { ...r.models }; if (!models[settings.modelId]) models[settings.modelId] = settings.modelId;
+  $('#set-model').innerHTML = Object.entries(models).map(([id, label]) => `<option value="${esc(id)}" ${id === settings.modelId ? 'selected' : ''}>${esc(label)}</option>`).join('');
+  $('#set-starters').innerHTML = settings.starters.map(starterRow).join('');
+};
+$('#set-add-starter').addEventListener('click', () => { if ($$('.starter').length >= 6) return toast('Up to 6 starters.'); $('#set-starters').insertAdjacentHTML('beforeend', starterRow()); });
+$('#set-starters').addEventListener('click', (e) => { if (e.target.closest('[data-remove]')) e.target.closest('.starter').remove(); });
+$('#set-save').addEventListener('click', async () => {
+  try {
+    const starters = $$('.starter').map((r) => ({ kicker: $('[data-k=kicker]', r).value, text: $('[data-k=text]', r).value, doc: $('[data-k=doc]', r).checked }));
+    await api('PUT', '/admin/settings', {
+      welcomeText: $('#set-welcome').value, disclaimer: $('#set-disclaimer').value, contactPhone: $('#set-phone').value,
+      starters, dailyLimitPerIp: Number($('#set-ip').value), dailyLimitGlobal: Number($('#set-global').value), modelId: $('#set-model').value
+    });
+    await loaders.settings(); toast('Settings saved. Members see them within a minute.');
+  } catch (e) { fail(e); }
+});
+
+/* ================= LIBRARY ================= */
+function renderLib(s) {
+  $('#lib-stats').innerHTML = [
+    ['Statute sections', s.statuteSections.toLocaleString(), s.origin === 'refreshed' ? 'Refreshed automatically' : 'From the last deploy'],
+    ['Built', fmtDay(String(s.builtAt).slice(0, 10)), 'From official sources'],
+    ['OMAG sections', s.omagSections, 'From switched-on documents'],
+    ['Last update check', s.lastCheck ? fmtDate(s.lastCheck.at) : 'Not yet', s.lastCheck ? s.lastCheck.message : 'Runs daily']
+  ].map(([l, v, h]) => `<div class="card stat"><div class="label">${l}</div><div class="value" style="font-size:22px">${esc(v)}</div><div class="hint">${esc(h)}</div></div>`).join('');
+}
+loaders.library = async () => renderLib(await api('GET', '/admin/library'));
+$('#lib-refresh').addEventListener('click', async (e) => {
+  e.target.disabled = true;
+  try { const r = await api('POST', '/admin/library/refresh', {}); renderLib(r.status); toast(r.result.message); } catch (err) { fail(err); } finally { e.target.disabled = false; }
+});
+$('#lib-search-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const q = $('#lib-q').value.trim(); if (!q) return;
+  try {
+    const { results } = await api('POST', '/admin/library/search', { query: q, jurisdiction: $('#lib-j').value });
+    $('#lib-results').innerHTML = results.length ? `<table><tbody>${results.map((r) => `<tr><td style="width:200px">${citeChip(r.id, r.cite)}</td><td><strong>${esc(r.heading)}</strong><div class="hint trunc">${esc(r.excerpt)}</div></td></tr>`).join('')}</tbody></table>` : '<p class="hint">Nothing found.</p>';
+  } catch (err) { fail(err); }
+});
+
+/* ================= SOURCE + DRAWER ================= */
+function openDrawer(title, html) {
+  $('#overlay').innerHTML = `<div class="scrim" data-close></div><aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="dr-title"><header><h2 id="dr-title">${esc(title)}</h2><button class="icon-btn" data-close aria-label="Close">✕</button></header><div class="body">${html}</div></aside>`;
+  $('#overlay [data-close].icon-btn').focus();
+}
+$('#overlay').addEventListener('click', (e) => { if (e.target.closest('[data-close]')) $('#overlay').innerHTML = ''; });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') $('#overlay').innerHTML = ''; });
+document.addEventListener('click', async (e) => {
+  const c = e.target.closest('.cite[data-cite]'); if (!c) return;
+  try {
+    const r = await fetch(`${PUBLIC_API}/source?id=${encodeURIComponent(c.dataset.cite)}`);
+    if (!r.ok) throw new Error('Couldn’t load that section.');
+    const s = await r.json();
+    openDrawer(s.heading && !s.cite.endsWith(s.heading) ? `${s.cite} — ${s.heading}` : s.cite, `<p class="hint">${esc(s.source || '')}</p>${s.text.split(/\n{2,}/).map((p) => `<p style="line-height:1.6">${esc(p)}</p>`).join('')}${s.url ? `<p><a href="${esc(s.url)}" target="_blank" rel="noopener">Official source ↗</a></p>` : ''}`);
+  } catch (err) { toast(err.message); }
+});
+
+/* ================= START ================= */
+async function startApp() {
+  $('#login').hidden = true; $('#app').hidden = false;
+  $('#side-icon').innerHTML = `<span style="width:38px;height:38px;display:inline-flex">${ICON(true)}</span>`;
+  $('#dev-banner').hidden = !AUTH.local;
+  try {
+    const me = await api('GET', '/admin/me');
+    $('#who').textContent = me.dev ? 'Local mode' : me.email;
+    $('#signout').hidden = !!me.dev;
+  } catch (e) { return fail(e); }
+  api('GET', '/admin/contacts').then(({ contacts }) => {
+    const recent = contacts.filter((c) => Date.now() - new Date(c.at) < 7 * 86400000).length;
+    $('#msg-count').hidden = !recent; $('#msg-count').textContent = recent;
+  }).catch(() => {});
+  const start = location.hash.slice(1);
+  go(loaders[start] ? start : 'overview');
+}
+
+(async function init() {
+  document.head.insertAdjacentHTML('beforeend', `<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,${encodeURIComponent(ICON())}">`);
+  if (!API) { document.body.innerHTML = '<div class="login"><div class="card"><h1>Not connected</h1><p class="hint">Set apiUrl in web/config.js.</p></div></div>'; return; }
+  try {
+    AUTH = await (await fetch(PUBLIC_API + '/auth-config')).json();
+  } catch {
+    document.body.innerHTML = '<div class="login"><div class="card"><h1>Can’t reach Pip</h1><p class="hint">The API isn’t responding. Check that the backend is deployed.</p></div></div>'; return;
+  }
+  if (AUTH.local) return startApp();
+  if (!AUTH.userPoolId) { showLogin('Admin sign-in isn’t set up yet. Redeploy the backend with an AdminEmail.'); return; }
+  if (tok.id || (await refreshToken())) startApp(); else showLogin();
+})();
+})();
+</script>
+</body>
+</html>

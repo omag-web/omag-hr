@@ -58,8 +58,11 @@ test('POST /chat validates input', async () => {
   assert.equal((await call('POST', '/chat', { body: { conversationId: 'conv_test_123', messages: [{ role: 'user', text: 'x'.repeat(5000) }] } })).statusCode, 400);
 });
 
-test('POST /feedback validates', async () => {
-  assert.equal((await call('POST', '/feedback', { body: { conversationId: 'conv_test_123', turnId: 'TURN#x', rating: 'up' } })).statusCode, 200);
+test('POST /feedback rates a real answer, rejects unknown ones', async () => {
+  const r = await call('POST', '/chat', { body: { conversationId: 'conv_fb_12345', browserId: 'b', form: 'town', messages: [{ role: 'user', text: 'board of trustees appoint remove' }] } });
+  const done = r.body.trim().split('\n').map((l) => JSON.parse(l)).at(-1);
+  assert.equal((await call('POST', '/feedback', { body: { conversationId: 'conv_fb_12345', turnId: done.turnId, rating: 'up' } })).statusCode, 200);
+  assert.equal((await call('POST', '/feedback', { body: { conversationId: 'conv_test_123', turnId: 'TURN#nope', rating: 'up' } })).statusCode, 404);
   assert.equal((await call('POST', '/feedback', { body: { conversationId: 'conv_test_123', turnId: 'TURN#x', rating: 'meh' } })).statusCode, 400);
 });
 

@@ -1,38 +1,32 @@
-// DynamoDB: conversation logs, feedback, and rate limits — one table.
-// If TABLE_NAME isn't set (local dev, tests) everything is a no-op that allows requests.
+// Conversation logs, feedback, "Talk to OMAG" messages and rate limits.
 //
-// Items
-//   pk CONV#<conversationId>   sk TURN#<iso time>#<rand>   one per answered question
-//   pk CONTACT#<date>          sk <iso time>#<rand>        "Talk to OMAG" messages
-//   pk RATE#<scope>#<date>     sk -                        counters (expire after 2 days)
+//   pk CONV#<conversationId>  sk TURN#<iso>#<rand>   gsi1pk TURNS#<yyyy-mm-dd>  gsi1sk <turnId>
+//   pk CONTACT#<yyyy-mm-dd>   sk <iso>#<rand>        gsi1pk CONTACTS            gsi1sk <iso>
+//   pk RATE#<scope>#<date>    sk -                   (counters; expire after 2 days)
 
 import { createHash, randomBytes } from 'node:crypto';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { SNSClient, PublishCommand } from '@aws-sdk/client-sns';
+import { kv } from './storage.mjs';
 
-const TABLE = process.env.TABLE_NAME;
-const RETENTION_DAYS = Number(process.env.RETENTION_DAYS || 730);
-const SALT = process.env.HASH_SALT || 'local-dev';
+const TABLE = () => process.env.TABLE_NAME;
+const RETENTION_DAYS = () => Number(process.env.RETENTION_DAYS || 730);
+const SALT = () => process.env.HASH_SALT || 'local-dev';
 let ddb;
 const db = () => (ddb ||= DynamoDBDocumentClient.from(new DynamoDBClient({}), { marshallOptions: { removeUndefinedValues: true } }));
 
-export const hash = (v) => createHash('sha256').update(SALT + '|' + String(v || '')).digest('hex').slice(0, 24);
-const day = (d = new Date()) => d.toISOString().slice(0, 10);
+export const hash = (v) => createHash('sha256').update(SALT() + '|' + String(v || '')).digest('hex').slice(0, 24);
+export const day = (d = new Date()) => d.toISOString().slice(0, 10);
 const epoch = (days) => Math.floor(Date.now() / 1000) + days * 86400;
 
-/**
- * Counts one message against the per-IP and global daily limits.
- * Returns { ok: true } or { ok: false, reason }.
- */
-export async function checkRateLimit(ip) {
-  if (!TABLE) return { ok: true };
-  const perIp = Number(process.env.DAILY_LIMIT_PER_IP || 60);
-  const global = Number(process.env.DAILY_LIMIT_GLOBAL || 600);
+/** Counts one question against the per-IP and global daily limits (from settings). */
+export async function checkRateLimit(ip, { perIp = 60, global = 600 } = {}) {
+  if (!TABLE()) return { ok: true };
   const bump = async (pk, limit) => {
     try {
       await db().send(new UpdateCommand({
-        TableName: TABLE,
+        TableName: TABLE(),
         Key: { pk, sk: '-' },
         UpdateExpression: 'ADD n :one SET expiresAt = if_not_exists(expiresAt, :exp)',
         ConditionExpression: 'attribute_not_exists(n) OR n < :lim',
@@ -53,50 +47,35 @@ export function newTurnId() {
   return `TURN#${new Date().toISOString()}#${randomBytes(3).toString('hex')}`;
 }
 
-export async function logTurn({ conversationId, turnId, browserId, ip, city, form, question, answer, citations, unread, usage, toolCalls, latencyMs, model, error }) {
-  if (!TABLE) return;
-  await db().send(new PutCommand({
-    TableName: TABLE,
-    Item: {
-      pk: `CONV#${conversationId}`,
-      sk: turnId,
-      type: 'turn',
-      day: day(),
-      browser: hash(browserId),
-      ip: hash(ip),
-      city: city || undefined,
-      form: form || undefined,
-      question: String(question || '').slice(0, 4000),
-      answer: String(answer || '').slice(0, 12000),
-      citations: citations?.map((c) => c.id),
-      unreadCitations: unread?.length ? unread : undefined,
-      tools: toolCalls?.length,
-      inputTokens: usage?.inputTokens,
-      outputTokens: usage?.outputTokens,
-      cacheReadTokens: usage?.cacheReadInputTokens,
-      latencyMs,
-      model,
-      error: error || undefined,
-      expiresAt: epoch(RETENTION_DAYS)
-    }
-  }));
+export async function logTurn({ conversationId, turnId, browserId, ip, city, form, question, answer, citations, unread, usage, toolCalls, latencyMs, model, error, preview }) {
+  await kv.put({
+    pk: `CONV#${conversationId}`,
+    sk: turnId,
+    gsi1pk: preview ? `PREVIEW#${day()}` : `TURNS#${day()}`,
+    gsi1sk: turnId,
+    type: 'turn',
+    day: day(),
+    browser: hash(browserId),
+    ip: hash(ip),
+    city: city || undefined,
+    form: form || undefined,
+    question: String(question || '').slice(0, 4000),
+    answer: String(answer || '').slice(0, 12000),
+    citations: citations?.map((c) => c.id),
+    unreadCitations: unread?.length ? unread : undefined,
+    tools: toolCalls?.length,
+    inputTokens: usage?.inputTokens,
+    outputTokens: usage?.outputTokens,
+    cacheReadTokens: usage?.cacheReadInputTokens,
+    latencyMs,
+    model,
+    error: error || undefined,
+    expiresAt: epoch(RETENTION_DAYS())
+  });
 }
 
 export async function saveFeedback({ conversationId, turnId, rating, note }) {
-  if (!TABLE) return true;
-  try {
-    await db().send(new UpdateCommand({
-      TableName: TABLE,
-      Key: { pk: `CONV#${conversationId}`, sk: turnId },
-      UpdateExpression: 'SET rating = :r, ratingNote = :n, ratedAt = :t',
-      ConditionExpression: 'attribute_exists(pk)',
-      ExpressionAttributeValues: { ':r': rating, ':n': note ? String(note).slice(0, 1000) : null, ':t': new Date().toISOString() }
-    }));
-    return true;
-  } catch (e) {
-    if (e.name === 'ConditionalCheckFailedException') return false;
-    throw e;
-  }
+  return kv.patch(`CONV#${conversationId}`, turnId, { rating, ratingNote: note ? String(note).slice(0, 1000) : null, ratedAt: new Date().toISOString() });
 }
 
 export async function saveContact({ conversationId, city, form, note, transcript, ip }) {
@@ -118,18 +97,62 @@ export async function saveContact({ conversationId, city, form, note, transcript
       ].join('\n')
     }));
   }
-  if (!TABLE) return;
-  await db().send(new PutCommand({
-    TableName: TABLE,
-    Item: {
-      pk: `CONTACT#${day()}`,
-      sk: `${new Date().toISOString()}#${randomBytes(3).toString('hex')}`,
-      type: 'contact',
-      conversationId, city, form,
-      note: String(note || '').slice(0, 2000),
-      transcript: String(transcript || '').slice(0, 20000),
-      ip: hash(ip),
-      expiresAt: epoch(RETENTION_DAYS)
-    }
-  }));
+  const now = new Date().toISOString();
+  await kv.put({
+    pk: `CONTACT#${day()}`,
+    sk: `${now}#${randomBytes(3).toString('hex')}`,
+    gsi1pk: 'CONTACTS', gsi1sk: now,
+    type: 'contact',
+    conversationId, city, form,
+    note: String(note || '').slice(0, 2000),
+    transcript: String(transcript || '').slice(0, 20000),
+    ip: hash(ip),
+    expiresAt: epoch(RETENTION_DAYS())
+  });
+}
+
+/* ---------- for the admin panel ---------- */
+const turnSummary = (t) => ({
+  conversationId: t.pk.slice(5), turnId: t.sk, at: t.sk.split('#')[1], day: t.day,
+  city: t.city, form: t.form, question: t.question, answer: t.answer,
+  citations: t.citations || [], unread: t.unreadCitations || [], rating: t.rating, ratingNote: t.ratingNote,
+  inputTokens: t.inputTokens, outputTokens: t.outputTokens, latencyMs: t.latencyMs, model: t.model, error: t.error
+});
+
+export async function listTurns({ days = 14, limit = 300 } = {}) {
+  const out = [];
+  for (let i = 0; i < Math.min(days, 90) && out.length < limit; i++) {
+    const d = day(new Date(Date.now() - i * 86400000));
+    out.push(...(await kv.queryIndex(`TURNS#${d}`, { limit: limit - out.length })));
+  }
+  return out.map(turnSummary);
+}
+
+export async function getConversation(conversationId) {
+  const items = await kv.query(`CONV#${conversationId}`, { newestFirst: false, limit: 100 });
+  return items.map(turnSummary);
+}
+
+export async function listContacts({ limit = 100 } = {}) {
+  const items = await kv.queryIndex('CONTACTS', { limit });
+  return items.map((c) => ({ at: c.gsi1sk, conversationId: c.conversationId, city: c.city, form: c.form, note: c.note, transcript: c.transcript }));
+}
+
+/** Rough usage numbers for the dashboard. */
+export async function usageStats({ days = 30 } = {}) {
+  const turns = await listTurns({ days, limit: 5000 });
+  const byDay = {};
+  for (let i = days - 1; i >= 0; i--) byDay[day(new Date(Date.now() - i * 86400000))] = 0;
+  let up = 0, down = 0, errors = 0, inTok = 0, outTok = 0;
+  const forms = {}, convs = new Set();
+  for (const t of turns) {
+    if (t.day in byDay) byDay[t.day]++;
+    if (t.rating === 'up') up++;
+    if (t.rating === 'down') down++;
+    if (t.error) errors++;
+    inTok += t.inputTokens || 0; outTok += t.outputTokens || 0;
+    if (t.form) forms[t.form] = (forms[t.form] || 0) + 1;
+    convs.add(t.conversationId);
+  }
+  return { days, questions: turns.length, conversations: convs.size, up, down, errors, inputTokens: inTok, outputTokens: outTok, byDay, forms };
 }

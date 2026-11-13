@@ -4,6 +4,9 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { getConfig, bumpVersion } from './config.mjs';
+import { kv, blobs } from './storage.mjs';
+import { enabledSections } from './docs.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_PATH = join(here, '..', 'data', 'library.json');
@@ -130,8 +133,90 @@ export class Library {
   }
 }
 
-let cached;
-export function getLibrary() {
-  if (!cached) cached = Library.load();
-  return cached;
+/* ---------- the live library: statutes + enabled OMAG documents ---------- */
+
+const LIBRARY_KEY = 'library/library.json';
+const DEFAULT_LIBRARY_URL = 'https://omag-web.github.io/omag-hr/backend/data/library.json';
+let bundled = null;
+let current = { key: null, lib: null };
+let pending = null;
+
+function bundledLibrary() {
+  return (bundled ||= JSON.parse(readFileSync(process.env.LIBRARY_PATH || DEFAULT_PATH, 'utf8')));
+}
+
+async function statuteLibrary() {
+  const buf = await blobs.get(LIBRARY_KEY).catch(() => null);
+  if (buf) {
+    const fromStore = JSON.parse(buf.toString('utf8'));
+    // A redeploy can ship a newer library than the stored copy; use whichever is newer.
+    if (String(fromStore.builtAt) >= String(bundledLibrary().builtAt)) return { ...fromStore, origin: 'refreshed' };
+  }
+  return { ...bundledLibrary(), origin: 'bundled' };
+}
+
+/** The library Pip searches. Rebuilt when the statutes or OMAG documents change. */
+export async function getLibrary() {
+  const { versions } = await getConfig();
+  const key = `${versions.library}:${versions.docs}`;
+  if (current.lib && current.key === key) return current.lib;
+  if (pending?.key === key) return pending.promise;
+  const promise = (async () => {
+    const base = await statuteLibrary();
+    const docs = await enabledSections().catch((e) => { console.error('loading OMAG documents failed', e); return { titles: [], sections: [] }; });
+    const lib = new Library({ ...base, sections: [...base.sections, ...docs.sections] });
+    lib.origin = base.origin;
+    lib.statuteCount = base.sections.length;
+    lib.omagTitles = docs.titles;
+    current = { key, lib };
+    return lib;
+  })().finally(() => { if (pending?.key === key) pending = null; });
+  pending = { key, promise };
+  return promise;
+}
+
+/**
+ * Pulls the latest statute library published by the "Refresh statute library"
+ * GitHub Action (served by GitHub Pages) and makes it live if it's newer.
+ * Runs daily on a schedule and from the admin panel.
+ */
+export async function refreshLibrary({ force = false } = {}) {
+  const url = process.env.LIBRARY_URL || DEFAULT_LIBRARY_URL;
+  const now = new Date().toISOString();
+  let result;
+  try {
+    const r = await fetch(url, { headers: { 'cache-control': 'no-cache' }, signal: AbortSignal.timeout(60000) }).catch((e) => {
+      console.error('library download failed', e);
+      throw new Error('Couldn’t reach the published library on GitHub Pages. Pip keeps using the current library; try again later.');
+    });
+    if (!r.ok) throw new Error(`Couldn’t download the published library (HTTP ${r.status}). Pip keeps using the current library.`);
+    const data = await r.json();
+    if (!Array.isArray(data.sections) || data.sections.length < 500 || !data.sections.every((s) => s.id && s.text && s.cite)) {
+      throw new Error('The downloaded library looks incomplete, so it was not used.');
+    }
+    const live = await statuteLibrary();
+    if (!force && String(data.builtAt) <= String(live.builtAt)) {
+      result = { changed: false, builtAt: live.builtAt, count: live.sections.length, message: 'Already up to date.' };
+    } else {
+      await blobs.put(LIBRARY_KEY, JSON.stringify(data), 'application/json');
+      await bumpVersion('library');
+      result = { changed: true, builtAt: data.builtAt, count: data.sections.length, message: `Updated to the library built ${String(data.builtAt).slice(0, 10)}.` };
+    }
+  } catch (e) {
+    result = { changed: false, error: true, message: e instanceof SyntaxError ? 'The published library file couldn’t be read, so it was not used.' : e.message };
+  }
+  await kv.put({ pk: 'CONFIG', sk: 'library', lastCheckAt: now, ...result });
+  return result;
+}
+
+export async function libraryStatus() {
+  const [lib, last] = await Promise.all([getLibrary(), kv.get('CONFIG', 'library')]);
+  return {
+    builtAt: lib.builtAt,
+    origin: lib.origin,
+    statuteSections: lib.statuteCount,
+    omagSections: lib.sections.length - lib.statuteCount,
+    sources: lib.sources,
+    lastCheck: last ? { at: last.lastCheckAt, message: last.message, error: !!last.error } : null
+  };
 }

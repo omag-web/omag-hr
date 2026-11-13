@@ -27,9 +27,18 @@ Parameters:
     Type: Number
     Default: 730
     Description: Days to keep conversation logs before DynamoDB deletes them.
+  AdminEmail:
+    Type: String
+    Default: ''
+    Description: First admin for the admin panel. AWS emails this address a temporary password. Add more admins later in the Cognito console.
+  LibraryUrl:
+    Type: String
+    Default: https://omag-web.github.io/omag-hr/backend/data/library.json
+    Description: Where the daily refresh downloads the statute library built by the GitHub Action.
 
 Conditions:
   HasContactEmail: !Not [!Equals [!Ref ContactEmail, '']]
+  HasAdminEmail: !Not [!Equals [!Ref AdminEmail, '']]
 
 Globals:
   Function:
@@ -44,9 +53,17 @@ Resources:
       AttributeDefinitions:
         - { AttributeName: pk, AttributeType: S }
         - { AttributeName: sk, AttributeType: S }
+        - { AttributeName: gsi1pk, AttributeType: S }
+        - { AttributeName: gsi1sk, AttributeType: S }
       KeySchema:
         - { AttributeName: pk, KeyType: HASH }
         - { AttributeName: sk, KeyType: RANGE }
+      GlobalSecondaryIndexes:
+        - IndexName: gsi1
+          KeySchema:
+            - { AttributeName: gsi1pk, KeyType: HASH }
+            - { AttributeName: gsi1sk, KeyType: RANGE }
+          Projection: { ProjectionType: ALL }
       TimeToLiveSpecification:
         AttributeName: expiresAt
         Enabled: true
@@ -54,6 +71,77 @@ Resources:
         PointInTimeRecoveryEnabled: true
       Tags:
         - { Key: app, Value: pip }
+
+  # Uploaded OMAG documents and the refreshed statute library. Private.
+  DataBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 }
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins: !Ref AllowedOrigins
+            AllowedMethods: [PUT]
+            AllowedHeaders: [content-type]
+            MaxAge: 3600
+      Tags:
+        - { Key: app, Value: pip }
+
+  # Admin sign-in. Only admins create accounts (no public sign-up).
+  AdminUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub ${AWS::StackName}-admins
+      UsernameAttributes: [email]
+      AutoVerifiedAttributes: [email]
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+        InviteMessageTemplate:
+          EmailSubject: Your Pip admin account
+          EmailMessage: 'You''ve been added as an admin for Pip, OMAG''s HR assistant. Sign in at https://omag-web.github.io/omag-hr/web/admin/ with your email {username} and this temporary password: {####} . You''ll choose your own password the first time you sign in.'
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 12
+          RequireLowercase: true
+          RequireUppercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+          TemporaryPasswordValidityDays: 7
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - { Name: verified_email, Priority: 1 }
+      UserPoolTags:
+        app: pip
+
+  AdminUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref AdminUserPool
+      ClientName: pip-admin-web
+      GenerateSecret: false
+      ExplicitAuthFlows: [ALLOW_USER_PASSWORD_AUTH, ALLOW_REFRESH_TOKEN_AUTH]
+      PreventUserExistenceErrors: ENABLED
+      IdTokenValidity: 8
+      AccessTokenValidity: 8
+      RefreshTokenValidity: 30
+      TokenValidityUnits: { IdToken: hours, AccessToken: hours, RefreshToken: days }
+
+  FirstAdmin:
+    Type: AWS::Cognito::UserPoolUser
+    Condition: HasAdminEmail
+    Properties:
+      UserPoolId: !Ref AdminUserPool
+      Username: !Ref AdminEmail
+      DesiredDeliveryMediums: [EMAIL]
+      UserAttributes:
+        - { Name: email, Value: !Ref AdminEmail }
+        - { Name: email_verified, Value: 'true' }
 
   ContactTopic:
     Type: AWS::SNS::Topic
@@ -90,12 +178,18 @@ Resources:
           DAILY_LIMIT_GLOBAL: !Ref DailyLimitGlobal
           RETENTION_DAYS: !Ref RetentionDays
           HASH_SALT: !Ref AWS::StackId
+          DATA_BUCKET: !Ref DataBucket
+          USER_POOL_ID: !Ref AdminUserPool
+          USER_POOL_CLIENT_ID: !Ref AdminUserPoolClient
+          LIBRARY_URL: !Ref LibraryUrl
           NODE_OPTIONS: --enable-source-maps
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref PipTable
         - SNSPublishMessagePolicy:
             TopicName: !GetAtt ContactTopic.TopicName
+        - S3CrudPolicy:
+            BucketName: !Ref DataBucket
         - Statement:
             - Effect: Allow
               Action:
@@ -105,13 +199,19 @@ Resources:
                 - arn:aws:bedrock:*::foundation-model/*
                 - !Sub arn:aws:bedrock:*:${AWS::AccountId}:inference-profile/*
                 - !Sub arn:aws:bedrock:*:${AWS::AccountId}:application-inference-profile/*
+      Events:
+        DailyLibraryRefresh:
+          Type: Schedule
+          Properties:
+            Schedule: rate(1 day)
+            Input: '{"pipTask":"refresh-library"}'
       FunctionUrlConfig:
         AuthType: NONE
         InvokeMode: RESPONSE_STREAM
         Cors:
           AllowOrigins: !Ref AllowedOrigins
-          AllowMethods: [GET, POST]
-          AllowHeaders: [content-type]
+          AllowMethods: [GET, POST, PUT, DELETE]
+          AllowHeaders: [content-type, authorization]
           MaxAge: 86400
 
   # Since October 2025 a public Function URL needs lambda:InvokeFunction as well as
@@ -149,6 +249,12 @@ Resources:
       AlarmActions: [!Ref ContactTopic]
 
 Outputs:
+  AdminUrl:
+    Description: The admin panel
+    Value: https://omag-web.github.io/omag-hr/web/admin/
+  UserPoolId:
+    Description: Add more admins here (Cognito console → this user pool → Users → Create user)
+    Value: !Ref AdminUserPool
   ApiUrl:
     Description: Put this in web/config.js as apiUrl
     Value: !GetAtt PipFunctionUrl.FunctionUrl

@@ -39,7 +39,8 @@ export function buildRequest({ modelId, system, messages, tools, maxTokens }) {
  * resolves with { content, stopReason, usage } where content is the assistant
  * message content (text + toolUse blocks) in Converse format.
  */
-export async function converseTurn({ system, messages, tools, onText, modelId = process.env.MODEL_ID, maxTokens }) {
+export async function converseTurn({ system, messages, tools, onText, modelId, maxTokens }) {
+  modelId ||= process.env.MODEL_ID;
   if ((process.env.MODEL_MODE || '').toLowerCase() === 'mock') return mockTurn({ messages, onText });
 
   // Plain HTTP/1.1 rather than the SDK's HTTP/2 default: ConverseStream works the

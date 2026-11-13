@@ -4,13 +4,13 @@ export const TOOL_SPECS = [
   {
     toolSpec: {
       name: 'search_law',
-      description: 'Search the statute library (Oklahoma Statutes for municipalities and federal employment regulations). Returns matching sections with id, citation, heading and a short excerpt. Use get_sections to read full text before citing.',
+      description: 'Search the library: Oklahoma Statutes for municipalities, federal employment regulations, and OMAG guidance documents. Returns matching sections with id, citation, heading and a short excerpt. Use get_sections to read full text before citing.',
       inputSchema: {
         json: {
           type: 'object',
           properties: {
             query: { type: 'string', description: 'Keywords a statute would use, or a citation like "11 O.S. § 12-106" or "29 CFR 825.110".' },
-            jurisdiction: { type: 'string', enum: ['OK', 'US', 'any'], description: 'OK = Oklahoma statutes, US = federal regulations, any = both (default).' }
+            jurisdiction: { type: 'string', enum: ['OK', 'US', 'OMAG', 'any'], description: 'OK = Oklahoma statutes, US = federal regulations, OMAG = OMAG guidance documents, any = all (default).' }
           },
           required: ['query']
         }
@@ -38,10 +38,10 @@ const MAX_SECTION_CHARS = 9000;
 export function runTool(name, input, library) {
   if (name === 'search_law') {
     const q = String(input?.query || '').slice(0, 300);
-    const j = input?.jurisdiction === 'OK' || input?.jurisdiction === 'US' ? input.jurisdiction : undefined;
+    const j = ['OK', 'US', 'OMAG'].includes(input?.jurisdiction) ? input.jurisdiction : undefined;
     const hits = library.search(q, { jurisdiction: j, limit: 8 });
     return {
-      status: `Searching ${j === 'US' ? 'federal regulations' : j === 'OK' ? 'Oklahoma statutes' : 'the statute library'} for “${q}”`,
+      status: `Searching ${j === 'US' ? 'federal regulations' : j === 'OK' ? 'Oklahoma statutes' : j === 'OMAG' ? 'OMAG guidance' : 'the library'} for “${q}”`,
       ids: [],
       result: hits.length
         ? { results: hits.map((s) => ({ id: s.id, cite: s.cite, heading: s.heading, excerpt: s.text.slice(0, 280).replace(/\s+/g, ' ') + (s.text.length > 280 ? '…' : '') })) }
