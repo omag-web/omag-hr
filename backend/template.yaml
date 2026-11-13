@@ -370,7 +370,9 @@ Resources:
       DatapointsToAlarm: 3
       Threshold: 1
       ComparisonOperator: LessThanThreshold
-      TreatMissingData: breaching
+      # A failed check reports 0, so "down" always shows up as data. Missing data just means
+      # Route 53 hasn't reported yet (for example, right after a deploy), not that Pip is down.
+      TreatMissingData: notBreaching
       AlarmActions: [!Ref ContactTopic]
       OKActions: [!Ref ContactTopic]
 
