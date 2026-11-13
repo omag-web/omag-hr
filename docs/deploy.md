@@ -92,6 +92,28 @@ The global daily limit already caps spend at a few dollars a day. For a second s
 
 **Adding another admin.** In the admin panel, open **Admins**, enter their email and click **Send invite**. The same page resends invites, emails a password-reset code, turns someone's access off (they're signed out within a minute) or removes them. You can't turn off or remove yourself, so there's always at least one admin. Changes are also possible in the AWS console (**Cognito** → User pools → `pip-hr-admins` → Users) if the panel is ever unavailable.
 
+## 7. Automatic deploys from GitHub (recommended)
+
+After this one-time setup, merging a pull request that changes `backend/` deploys Pip automatically. GitHub runs the tests first and deploys only if they pass. You don't run `sam deploy` from your PC any more, so the office firewall doesn't matter.
+
+1. **Check whether AWS already trusts GitHub** (some accounts have this from other projects):
+   ```
+   aws iam list-open-id-connect-providers --profile omag
+   ```
+   If the output mentions `token.actions.githubusercontent.com`, use the second command in step 2; otherwise use the first.
+2. **Create the deploy role.** From the `omag-hr` folder:
+   ```
+   aws cloudformation deploy --template-file deploy/github-deploy-role.yaml --stack-name pip-hr-github-deploy --capabilities CAPABILITY_NAMED_IAM --profile omag --region us-east-1
+   ```
+   or, if the provider already exists:
+   ```
+   aws cloudformation deploy --template-file deploy/github-deploy-role.yaml --stack-name pip-hr-github-deploy --capabilities CAPABILITY_NAMED_IAM --parameter-overrides CreateGitHubOidcProvider=false --profile omag --region us-east-1
+   ```
+   This creates a role that only the `main` branch of `omag-web/omag-hr` can use. No AWS keys are stored in GitHub.
+3. **Run the first deploy.** On GitHub: **Actions** → **Deploy backend** → **Run workflow** → **Run workflow**. A green check (about 5 minutes) means Pip is deployed. A red ✗: click it, then click the step with the ✗ to see why.
+
+From then on it runs by itself after every merge that touches `backend/`. It keeps the settings you chose with `sam deploy --guided` (it reads them from the stack), so it never resets emails or limits. To change one of those settings later, run `sam deploy --guided` from your PC as before, on the hotspot if needed. The automatic deploy keeps whatever you set.
+
 ## Day-to-day
 
 Most changes are made in the admin panel and take effect within a minute, with no redeploy:

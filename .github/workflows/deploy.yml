@@ -1,0 +1,97 @@
+# Deploys the backend (backend/template.yaml → the pip-hr stack) whenever backend code changes on main,
+# or by hand from the Actions tab (Deploy backend → Run workflow).
+# AWS access comes from the pip-hr-github-deploy role (deploy/github-deploy-role.yaml); no keys are stored.
+name: Deploy backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '!backend/data/**'   # the monthly library rebuild doesn't need a deploy; Pip picks it up itself
+      - '!backend/eval/**'
+  workflow_dispatch:
+
+permissions:
+  id-token: write   # to get the short-lived AWS credentials
+  contents: read
+
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
+
+env:
+  STACK: pip-hr
+  AWS_REGION: us-east-1
+  ROLE_ARN: arn:aws:iam::237264540272:role/pip-hr-github-deploy
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Test (nothing deploys if a test fails)
+        run: npm test
+
+      - uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Keep the stack's current settings
+        # Your answers to `sam deploy --guided` (emails, limits, model...) live in the stack, not in
+        # the repo. Read them back so this deploy never resets them. New parameters use their defaults.
+        run: |
+          aws cloudformation describe-stacks --stack-name "$STACK" --query 'Stacks[0].Parameters' --output json > /tmp/current.json
+          node --input-type=module -e '
+            import { readFileSync, writeFileSync } from "node:fs";
+            const current = JSON.parse(readFileSync("/tmp/current.json", "utf8"));
+            const template = readFileSync("template.yaml", "utf8");
+            const out = current
+              .filter((p) => p.ParameterValue !== "" && new RegExp(`^  ${p.ParameterKey}:`, "m").test(template))
+              .map((p) => `${p.ParameterKey}="${p.ParameterValue.replace(/"/g, "")}"`);
+            writeFileSync("/tmp/overrides.txt", out.join(" "));
+            console.log("Keeping:", current.map((p) => p.ParameterKey).join(", "));
+          '
+
+      - name: Build
+        run: sam build
+
+      - name: Deploy
+        run: |
+          sam deploy \
+            --stack-name "$STACK" \
+            --region "$AWS_REGION" \
+            --resolve-s3 \
+            --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --parameter-overrides $(cat /tmp/overrides.txt)
+
+      - name: Check Pip is answering
+        run: |
+          URL=$(aws cloudformation describe-stacks --stack-name "$STACK" --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" --output text)
+          for i in 1 2 3 4 5; do
+            if curl -fsS "${URL%/}/health"; then echo; echo "Pip is up."; exit 0; fi
+            sleep 10
+          done
+          echo "Pip's health check failed after deploying." >&2
+          exit 1
