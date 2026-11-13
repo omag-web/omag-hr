@@ -7,6 +7,7 @@
 //   PIP_API=http://localhost:8787 npm run eval        # against npm run dev
 //
 // "expect" = all of these ids should be cited; with "any": true, at least one.
+// An entry that is itself a list means "any one of these".
 
 import { readFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
@@ -35,7 +36,9 @@ for (const [i, c] of cases.entries()) {
     if (ev.type === 'done' || ev.type === 'error') done = ev;
   }
   const cited = (done?.citations || []).map((x) => x.id);
-  const ok = c.any ? c.expect.some((e) => cited.includes(e)) : c.expect.every((e) => cited.includes(e));
+  // An entry can be a list of acceptable alternatives, e.g. ["29-CFR-825.104", "29-CFR-825.108"].
+  const hit = (e) => (Array.isArray(e) ? e.some((x) => cited.includes(x)) : cited.includes(e));
+  const ok = c.any ? c.expect.some(hit) : c.expect.every(hit);
   if (ok) pass++;
   console.log(`${ok ? '✓' : '✗'} ${i} [${c.form}] ${c.q}`);
   console.log(`    cited: ${cited.join(', ') || '(none)'}${done?.unread?.length ? `   ⚠ uncited/unread: ${done.unread.join(', ')}` : ''}   ${((Date.now() - started) / 1000).toFixed(1)}s`);
