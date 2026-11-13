@@ -1,28 +1,58 @@
-// Model access. Real mode streams from Amazon Bedrock's Converse API (works with
-// Claude and OpenAI models on Bedrock). Mock mode is a scripted stand-in used by
+// Model access. Real mode streams from Amazon Bedrock's Converse API. Pip runs on
+// OpenAI GPT-5.6 on Bedrock by default; Claude models on Bedrock work too. Mock mode is a scripted stand-in used by
 // tests and `npm run dev:mock`, so the whole app can run without AWS.
 
 import { BedrockRuntimeClient, ConverseStreamCommand } from '@aws-sdk/client-bedrock-runtime';
 
 let client;
+let cacheUnsupported = false;   // set if the model rejects prompt-cache breakpoints
+
+/** Which model family a Bedrock model / inference profile id belongs to. */
+export function modelFamily(modelId = '') {
+  if (/openai\.|gpt/i.test(modelId)) return 'openai';
+  if (/anthropic\.|claude/i.test(modelId)) return 'anthropic';
+  return 'other';
+}
+
+/**
+ * The ConverseStream request for a model. GPT-5.x models reason before they
+ * answer (reasoning tokens count as output), so they get a bigger token budget
+ * and no temperature (reasoning models use their own sampling).
+ */
+export function buildRequest({ modelId, system, messages, tools, maxTokens }) {
+  const family = modelFamily(modelId);
+  const inferenceConfig = family === 'anthropic'
+    ? { maxTokens: maxTokens || 2000, temperature: 0.2 }
+    : { maxTokens: maxTokens || 8000 };
+  return {
+    modelId,
+    system: cacheUnsupported ? [{ text: system }] : [{ text: system }, { cachePoint: { type: 'default' } }],
+    messages,
+    toolConfig: { tools },
+    inferenceConfig
+  };
+}
 
 /**
  * Streams one model turn. Calls onText(delta) for text as it arrives and
  * resolves with { content, stopReason, usage } where content is the assistant
  * message content (text + toolUse blocks) in Converse format.
  */
-export async function converseTurn({ system, messages, tools, onText, modelId = process.env.MODEL_ID, maxTokens = 2000 }) {
+export async function converseTurn({ system, messages, tools, onText, modelId = process.env.MODEL_ID, maxTokens }) {
   if ((process.env.MODEL_MODE || '').toLowerCase() === 'mock') return mockTurn({ messages, onText });
 
   client ||= new BedrockRuntimeClient({});
-  const cmd = new ConverseStreamCommand({
-    modelId,
-    system: [{ text: system }, { cachePoint: { type: 'default' } }],
-    messages,
-    toolConfig: { tools },
-    inferenceConfig: { maxTokens, temperature: 0.2 }
-  });
-  const res = await client.send(cmd);
+  let res;
+  try {
+    res = await client.send(new ConverseStreamCommand(buildRequest({ modelId, system, messages, tools, maxTokens })));
+  } catch (e) {
+    // If this model doesn't accept prompt-cache breakpoints, drop them and retry once.
+    if (!cacheUnsupported && e.name === 'ValidationException' && /cache/i.test(e.message || '')) {
+      cacheUnsupported = true;
+      console.warn('Model rejected cachePoint; continuing without prompt caching:', e.message);
+      res = await client.send(new ConverseStreamCommand(buildRequest({ modelId, system, messages, tools, maxTokens })));
+    } else throw e;
+  }
 
   const content = [];
   let current = null;
@@ -39,9 +69,10 @@ export async function converseTurn({ system, messages, tools, onText, modelId = 
         if (!current || !('text' in current)) { current = { text: '' }; content.push(current); }
         current.text += d.text;
         onText?.(d.text);
-      } else if (d.toolUse) {
+      } else if (d.toolUse && current?.toolUse) {
         current.toolUse.inputJson += d.toolUse.input || '';
       }
+      // d.reasoningContent (GPT-5.x / Claude thinking) is intentionally not shown to members.
     } else if (ev.contentBlockStop) {
       current = null;
     } else if (ev.messageStop) {

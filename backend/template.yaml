@@ -5,8 +5,8 @@ Description: Pip, OMAG's HR assistant — streaming chat API (Lambda Function UR
 Parameters:
   ModelId:
     Type: String
-    Default: us.anthropic.claude-sonnet-5-5
-    Description: Bedrock model or inference profile ID. Copy it from Bedrock console → Cross-region inference (or Model catalog).
+    Default: us.openai.gpt-5.6-terra
+    Description: Bedrock inference profile ID. Default is OpenAI GPT-5.6 Terra, US-only routing. Alternatives are us.openai.gpt-5.6-sol (strongest) and us.openai.gpt-5.6-luna (cheapest); Claude profile IDs also work.
   AllowedOrigins:
     Type: CommaDelimitedList
     Default: https://omag-web.github.io,http://localhost:8787

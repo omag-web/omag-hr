@@ -9,18 +9,23 @@ Commands below assume a terminal in the repo folder and an AWS CLI profile named
 
 ## 1. Turn on the model in Bedrock
 
-1. In the AWS console, switch to the region you'll deploy in (us-east-1 or us-east-2 both work), then open **Amazon Bedrock**.
-2. Go to **Model catalog** → **Claude Sonnet 5.5** (Anthropic). If it asks, submit Anthropic's one-time use-case form. Approval is usually immediate.
-3. Go to **Cross-region inference** (or **Inference profiles**) and copy the **US** profile ID for Claude Sonnet 5.5. It looks like `us.anthropic.claude-sonnet-5-5…`. Use this exact ID below; the template's default is a placeholder.
+Pip uses **OpenAI GPT-5.6 Terra** through Amazon Bedrock, so you don't need an OpenAI account or key, and usage bills through AWS.
 
-To use an OpenAI model on Bedrock instead (e.g. GPT-5.6 Terra), copy its model ID instead. Nothing else changes.
+1. In the AWS console, switch to **US East (N. Virginia)**, **US East (Ohio)** or **US West (Oregon)**, then open **Amazon Bedrock**.
+2. Open **Playground**, choose **Select model**, pick **US OpenAI GPT-5.6 Terra**, and send a test message. If the console asks you to enable access or accept OpenAI's terms, do that.
+3. The model ID to use below is `us.openai.gpt-5.6-terra`. That's the template's default. The `us.` prefix keeps requests inside US regions.
+
+Other options:
+- `us.openai.gpt-5.6-sol` is the strongest model, but costs more and is only in N. Virginia and Ohio.
+- `us.openai.gpt-5.6-luna` is the cheapest and fastest.
+- A Claude profile ID also works, with no code change.
 
 ## 2. Try it locally against the real model (optional, recommended)
 
 ```bash
 cd backend
 npm install
-AWS_PROFILE=omag AWS_REGION=us-east-1 MODEL_ID=<profile id from step 1> npm run dev
+AWS_PROFILE=omag AWS_REGION=us-east-1 MODEL_ID=us.openai.gpt-5.6-terra npm run dev
 ```
 
 Open http://localhost:8787 and ask a few questions. In a second terminal, run the evaluation questions:
@@ -46,7 +51,7 @@ Answer the prompts:
 |---|---|
 | Stack Name | `pip-hr` |
 | AWS Region | the region from step 1 |
-| Parameter ModelId | the profile ID from step 1 |
+| Parameter ModelId | press Enter for `us.openai.gpt-5.6-terra` |
 | Parameter AllowedOrigins | `https://omag-web.github.io,http://localhost:8787` (add `https://ask.omag.org` later) |
 | Parameter ContactEmail | who should get "Talk to OMAG" messages and error alerts |
 | DailyLimitPerIp / DailyLimitGlobal / RetentionDays | press Enter for the defaults (60 / 600 / 730) |
@@ -75,7 +80,7 @@ To put it on an OMAG domain later (e.g. `ask.omag.org`), point the domain at Git
 
 The global daily limit already caps spend at a few dollars a day. For a second safeguard:
 
-**Billing → Budgets → Create budget → Cost budget**: monthly, $50, filtered to **Service = Amazon Bedrock** (and the Claude/OpenAI Marketplace line items if they show separately). Alert at 80%.
+**Billing → Budgets → Create budget → Cost budget**: monthly, $50, filtered to **Service = Amazon Bedrock** (and any OpenAI line items if they show separately). Alert at 80%.
 
 ## Day-to-day
 

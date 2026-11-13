@@ -11,7 +11,7 @@
 | Path | What it is |
 |---|---|
 | [`web/`](web/) | **The live app.** One page that streams answers from the backend. Set the API address in `web/config.js`. |
-| [`backend/`](backend/) | **The API.** AWS Lambda + Amazon Bedrock + DynamoDB, deployed with AWS SAM (`template.yaml`). |
+| [`backend/`](backend/) | **The API.** AWS Lambda + OpenAI GPT-5.6 on Amazon Bedrock + DynamoDB, deployed with AWS SAM (`template.yaml`). The model is one setting (`ModelId`); Claude works too. |
 | [`backend/data/library.json`](backend/data/) | **The statute library** Pip searches: ~1,500 sections. Generated; don't edit by hand. |
 | [`knowledge/`](knowledge/) | What goes in the library (`sources.json`) and the scripts that build it from the Oklahoma Legislature and eCFR. |
 | [`prototype/`](prototype/index.html) | The original clickable prototype with scripted answers, kept as a demo. |
@@ -21,9 +21,9 @@
 ## How it works
 
 1. A member asks a question in `web/`. The page sends the conversation and the selected form of government to `POST /chat`.
-2. The Lambda gives Claude (on Bedrock) Pip's system prompt (`backend/src/prompt.mjs`) and two tools: `search_law`, a keyword search over the library, and `get_sections`, which reads full text.
-3. Claude researches, then writes an answer that cites sections as `[[11-12-106]]`. The answer streams back word by word.
-4. The backend keeps only citations to sections Claude actually read. The page turns them into chips that open the section text (`GET /source`).
+2. The Lambda gives OpenAI GPT-5.6 Terra (through Amazon Bedrock) Pip's system prompt (`backend/src/prompt.mjs`) and two tools: `search_law`, a keyword search over the library, and `get_sections`, which reads full text.
+3. GPT researches, then writes an answer that cites sections as `[[11-12-106]]`. The answer streams back word by word.
+4. The backend keeps only citations to sections GPT actually read. The page turns them into chips that open the section text (`GET /source`).
 5. Each answered question is logged to DynamoDB with its citations and token use. Thumbs up/down (`/feedback`) and "Talk to OMAG" (`/contact`, emailed via SNS) are stored with it.
 
 No accounts: conversation history lives in the member's browser. IP addresses are hashed and used only for the daily limits.
